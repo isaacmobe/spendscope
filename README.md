@@ -237,11 +237,3 @@ Try adding:
 Then set budget to 12000 and watch the warning trigger.
 
 ---
-
-## License
-
-MIT (or your preferred license)
-
-```
-
----
