@@ -5,7 +5,7 @@ import { HexSlab } from "./hx";
 function Fact({ label, value }) {
   return (
     <div className="text-center">
-      <p className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-ink-soft">{label}</p>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-soft">{label}</p>
       <p className="mt-1 font-mono text-[13px]">{value}</p>
     </div>
   );
@@ -18,17 +18,18 @@ function Fact({ label, value }) {
  * It is the unspent living budget (needs + wants) divided by the days left, today included.
  * For a past month it becomes a closing summary instead.
  */
-export default function SafeToSpend({ summary, money }) {
+export default function SafeToSpend({ summary, money, bare = false }) {
   const { safeToSpend, isCurrent, totalSpent, livingPool, groupSpent, income, savingsRate, trend } = summary;
   const perDay = safeToSpend ? safeToSpend.perDay : 0;
   const shown = useCountUp(Math.round(perDay));
   const over = safeToSpend && safeToSpend.remaining < 0;
+  const Wrap = bare ? "div" : HexSlab; // inside a popup it is drawn bare
   const avg = trend.today > 0 ? totalSpent / trend.today : 0;
 
   return (
-    <HexSlab data-tour="safe" className="h-full">
-      <div className="flex h-full flex-col items-center justify-center px-12 py-6 text-center">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.26em] text-ink-soft">{isCurrent ? "Safe to spend today" : "Month summary"}</h3>
+    <Wrap data-tour="safe" className="h-full">
+      <div className={`flex h-full flex-col items-center justify-center text-center ${bare ? "" : "px-12 py-6"}`}>
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.26em] text-ink-soft">{isCurrent ? "Safe to spend today" : "Month summary"}</h3>
 
         {isCurrent ? (
           income <= 0 ? (
@@ -63,6 +64,6 @@ export default function SafeToSpend({ summary, money }) {
           </>
         )}
       </div>
-    </HexSlab>
+    </Wrap>
   );
 }

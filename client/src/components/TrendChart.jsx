@@ -14,7 +14,7 @@ const M = { left: 10, right: 12, top: 18, bottom: 26 };
  * day, savings excluded) against the living budget. A dashed line shows an even pace across the
  * month. Hover or touch a day to read its total. Drawn with plain SVG, no chart library.
  */
-export default function TrendChart({ summary, money }) {
+export default function TrendChart({ summary, money, bare = false }) {
   const uid = useId().replace(/:/g, "");
   const { trend, isCurrent } = summary;
   const { days, today, cumulative, budget } = trend;
@@ -38,6 +38,9 @@ export default function TrendChart({ summary, money }) {
   const over = budget > 0 && last > budget;
   const ticks = [1, ...[8, 15, 22].filter((d) => d < days - 2), days];
 
+  // Inside a popup the chart is drawn bare; on its own it sits on a slab.
+  const Wrap = bare ? "div" : HexSlab;
+
   const onMove = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     const px = ((e.clientX - r.left) / r.width) * W;
@@ -46,9 +49,9 @@ export default function TrendChart({ summary, money }) {
   };
 
   return (
-    <HexSlab data-tour="trend" className="h-full">
-      <div className="px-12 py-6">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.26em] text-ink-soft">Spending pace</h3>
+    <Wrap data-tour="trend" className="h-full">
+      <div className={bare ? "" : "px-12 py-6"}>
+        {!bare && <h3 className="text-[11px] font-semibold uppercase tracking-[0.26em] text-ink-soft">Spending pace</h3>}
         {budget <= 0 ? (
           <p className="py-10 text-center text-sm text-ink-soft">{isCurrent ? "Add this month's earnings to see your pace." : "No earnings that month, so there is no budget to compare."}</p>
         ) : (
@@ -102,6 +105,6 @@ export default function TrendChart({ summary, money }) {
           </>
         )}
       </div>
-    </HexSlab>
+    </Wrap>
   );
 }

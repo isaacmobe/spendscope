@@ -159,7 +159,7 @@ export function HexSlab({ children, className = "", pc = 26, ...rest }) {
     <div className={`relative ${className}`} {...rest}>
       <div style={{ filter: "drop-shadow(0 16px 20px rgb(var(--c-shadow) / 0.16)) drop-shadow(0 2px 3px rgb(var(--c-shadow) / 0.14))" }}>
         <div className="panel-shape bg-ink/55 p-[1.5px]" style={{ "--pc": `${pc}px` }}>
-          <div className="panel-shape h-full bg-gradient-to-b from-cream-light to-cream" style={{ "--pc": `${pc - 1}px` }}>
+          <div className="panel-shape h-full surface" style={{ "--pc": `${pc - 1}px` }}>
             {children}
           </div>
         </div>

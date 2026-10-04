@@ -7,6 +7,7 @@
    Light = soft cream and ink. Dark = soft black and cream ink (never pure black or white).
    ============================================================================ */
 :root {
+  color-scheme: light;
   --c-bg: 241 238 230;
   --c-bg-deep: 231 227 215;
   --c-surface: 250 248 243;
@@ -16,8 +17,8 @@
   --c-face-top: 253 251 246;
   --c-face-bot: 236 232 220;
   --c-ink: 42 42 49;
-  --c-ink-soft: 116 114 122;
-  --c-ink-faint: 166 163 155;
+  --c-ink-soft: 92 90 99;
+  --c-ink-faint: 134 131 124;
   --c-accent: 94 98 196;
   --c-accent-soft: 142 145 214;
   --c-accent-wash: 228 229 244;
@@ -34,6 +35,7 @@
   --glow: 94 98 196;
 }
 .dark {
+  color-scheme: dark;
   --c-bg: 22 22 26;
   --c-bg-deep: 14 14 17;
   --c-surface: 41 41 48;
@@ -157,6 +159,19 @@ input[type="number"] {
    CSS variables switch the look: --c chamfer size, --b outline width.
    ============================================================================ */
 @layer components {
+  /* A card surface always sets its own text colour together with its background, so text can never
+     end up cream-on-cream or dark-on-dark when the theme changes. */
+  .surface {
+    background: linear-gradient(180deg, rgb(var(--c-face-top)), rgb(var(--c-face-bot)));
+    color: rgb(var(--c-ink));
+  }
+  .plate-1 {
+    background: rgb(var(--c-dark));
+  }
+  .plate-2 {
+    background: rgb(var(--c-deep));
+  }
+
   .hx {
     --c: 14px;
     --b: 1.5px;

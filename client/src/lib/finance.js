@@ -312,6 +312,7 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
     prevIncome,
     incomeEntries,
     entries,
+    allocation,
     pools,
     spendable,
     livingPool,

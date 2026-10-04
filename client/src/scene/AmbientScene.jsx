@@ -85,22 +85,38 @@ function Hexagons({ count, edges, animate, palette }) {
   );
 }
 
-// Fine dust particles that slowly turn.
+// Soft round sprite used for the dust, so each particle is a dot and never a square.
+function dotTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+}
+
+// Fine dust particles that sway slowly. The sway is a bounded oscillation (never an endless spin),
+// the dots have a fixed pixel size (so none can swell into a large square near the camera), and all
+// of them sit behind the hexagons.
 function Dust({ count, animate, palette }) {
   const points = useRef(null);
+  const sprite = useMemo(() => dotTexture(), []);
   const positions = useMemo(() => {
     const rnd = seeded(21);
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       arr[i * 3] = (rnd() - 0.5) * 26;
       arr[i * 3 + 1] = (rnd() - 0.5) * 15;
-      arr[i * 3 + 2] = -rnd() * 12;
+      arr[i * 3 + 2] = -2 - rnd() * 10;
     }
     return arr;
   }, [count]);
 
-  useFrame((_, delta) => {
-    if (animate && points.current) points.current.rotation.y += delta * 0.01;
+  useFrame(({ clock }) => {
+    if (animate && points.current) points.current.rotation.y = Math.sin(clock.elapsedTime * 0.05) * 0.12;
   });
 
   return (
@@ -108,7 +124,7 @@ function Dust({ count, animate, palette }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color={palette.dust} size={0.045} transparent opacity={palette.dustOpacity} sizeAttenuation depthWrite={false} />
+      <pointsMaterial color={palette.dust} map={sprite} alphaTest={0.02} size={3} transparent opacity={palette.dustOpacity} sizeAttenuation={false} depthWrite={false} />
     </points>
   );
 }

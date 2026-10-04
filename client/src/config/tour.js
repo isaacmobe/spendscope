@@ -32,27 +32,27 @@ export const TOUR_STEPS = [
   },
   {
     id: "tiles",
-    target: "tiles",
+    target: "cell-needs",
     title: "3. Your plan",
-    body: "Your earnings are split into needs, wants and savings (50/30/20 by default, editable in Settings). Savings are set aside first, so you pay yourself before you spend."
+    body: "The cells on the left show your earnings split into needs, wants and savings (50/30/20 by default, editable in Settings). Savings are set aside first, so you pay yourself before you spend. Click any cell to see how its number is worked out."
   },
   {
     id: "status",
-    target: "status",
+    target: "cell-goal",
     title: "4. Your goal",
-    body: "This bar shows when you can afford your goal. Click it to set the price, what you already saved and an optional deadline. It turns rose when you are behind pace and tells you how to catch up."
+    body: "This hexagon shows when you can afford your goal. Click it to set the price, what you already saved and an optional deadline. It turns rose when you are behind pace and tells you how to catch up."
   },
   {
     id: "safe",
-    target: "safe",
+    target: "cell-safe",
     title: "Safe to spend today",
-    body: "The amount you can spend today without breaking the month: your unspent living budget divided by the days left, today included."
+    body: "The amount you can spend today without breaking the month. Click it to see how it is worked out."
   },
   {
     id: "trend",
-    target: "trend",
+    target: "cell-pace",
     title: "Spending pace",
-    body: "Your running total against the budget. Staying under the dashed line means you are on pace. Hover or touch a day to read its total."
+    body: "Click it for your running total against the budget. Staying under the dashed line means you are on pace."
   },
   {
     id: "quick",

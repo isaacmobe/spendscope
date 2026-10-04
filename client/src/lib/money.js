@@ -27,3 +27,17 @@ export function formatMoney(amount, currency) {
   const sign = n < 0 && Number(formatted.replace(/[^\d]/g, "")) > 0 ? "-" : "";
   return `${sign}${isUsd ? "$" : "KES "}${formatted}`;
 }
+
+// Shorter text for small hexagon cells: the full amount when it is short enough, otherwise "KES 1.2M" / "KES 340K".
+export function formatMoneyFit(amount, currency, maxChars = 11) {
+  const full = formatMoney(amount, currency);
+  if (full.length <= maxChars) return full;
+  const n = Number(amount) || 0;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  const prefix = currency === "USD" ? "$" : "KES ";
+  const trim = (v) => String(Math.round(v * 10) / 10);
+  if (abs >= 1e9) return `${sign}${prefix}${trim(abs / 1e9)}B`;
+  if (abs >= 1e6) return `${sign}${prefix}${trim(abs / 1e6)}M`;
+  return `${sign}${prefix}${trim(abs / 1e3)}K`;
+}
