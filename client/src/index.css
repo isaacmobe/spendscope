@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Pale paper with a faint engineering grid, like a technical console. */
 body {
-  @apply bg-brand-cream text-slate-900 font-sans;
+  @apply bg-paper text-ink font-sans antialiased;
+  background-image:
+    linear-gradient(rgba(30, 33, 48, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 33, 48, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  min-height: 100vh;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid #5558C8;
+  outline-offset: 3px;
+}
+
+/* Number inputs: hide spinners, they fight the compact layout. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Respect the OS "reduce motion" setting for every CSS animation and transition. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

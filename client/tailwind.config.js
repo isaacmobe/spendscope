@@ -3,50 +3,35 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
-      /**
-       * Typography
-       * ----------
-       * Keep Euclid Circular A first (if you have it locally / licensed),
-       * then fall back to good system fonts.
-       */
       fontFamily: {
-        sans: [
-          '"Euclid Circular A"',
-          "system-ui",
-          "Segoe UI",
-          "Roboto",
-          "Arial",
-          "sans-serif"
-        ]
+        sans: ['"Inter"', "system-ui", "Segoe UI", "Roboto", "Arial", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
       },
-
       /**
-       * Brand Color System
-       * ------------------
-       * Centralized palette so components do NOT hardcode random hex values.
-       * Use like:
-       * - bg-brand-cream
-       * - text-brand-green
-       * - text-brand-red
-       * - bg-brand-yellow/10
+       * Palette (inspired by a pale, technical "link console" look)
+       * - paper: page and card backgrounds
+       * - ink:   text and hexagon outlines
+       * - accent: indigo for active/healthy values
+       * - ember: orange for warnings and highlighted words
+       * - salmon: status bar and over-budget state
        */
       colors: {
-        brand: {
-          green: "#115740",
-          cream: "#F7F6F2",
-          red: "#8F2D2D",
-          yellow: "#D6B85A"
-        }
+        paper: { DEFAULT: "#ECEBE6", light: "#F7F6F2" },
+        ink: { DEFAULT: "#1E2130", soft: "#5A5E70" },
+        line: "#C9C8C2",
+        accent: { DEFAULT: "#5558C8", dark: "#3E41A8" },
+        ember: "#E2793F",
+        salmon: { DEFAULT: "#E88B84", dark: "#B8504A" }
       },
-
-      /**
-       * Shadows
-       * -------
-       * A soft "floating" shadow for bento cards.
-       * Use like: shadow-float
-       */
-      boxShadow: {
-        float: "0 10px 25px -10px rgba(0,0,0,0.12)"
+      keyframes: {
+        "rise-in": { from: { opacity: 0, transform: "translateY(14px) scale(0.96)" }, to: { opacity: 1, transform: "none" } },
+        breathe: { "0%,100%": { filter: "drop-shadow(0 0 0 rgba(85,88,200,0))" }, "50%": { filter: "drop-shadow(0 0 10px rgba(85,88,200,0.45))" } },
+        flow: { to: { strokeDashoffset: -24 } }
+      },
+      animation: {
+        "rise-in": "rise-in 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        breathe: "breathe 3.6s ease-in-out infinite",
+        flow: "flow 1.6s linear infinite"
       }
     }
   },

@@ -1,62 +1,33 @@
-import Header from "./components/Header";
-import SummaryCards from "./components/SummaryCards";
-import BudgetBanner from "./components/BudgetBanner";
-import SpendingChart from "./components/SpendingChart";
-import TransactionForm from "./components/TransactionForm";
-import TransactionList from "./components/TransactionList";
-import CategoryFilter from "./components/CategoryFilter";
-import Footer from "./components/Footer";
+import { useAuth } from "./context/auth";
+import { FinanceProvider } from "./context/FinanceProvider";
+import AuthPage from "./components/AuthPage";
+import Dashboard from "./components/Dashboard";
+import SceneBackground from "./scene/SceneBackground";
 
 /**
- * App.jsx
- * -------
- * Full MVP dashboard layout:
- * - Header
- * - Summary
- * - Budget (month-based business rule)
- * - Chart (spending trend visualization)
- * - Form + list (CRUD)
+ * App
+ * ---
+ * Picks the screen: loading while we check the session, the dashboard when logged in,
+ * the login page otherwise. The 3D scene sits behind all of them.
+ * FinanceProvider is keyed by user id so a different login never sees stale data.
  */
 export default function App() {
+  const { status, user } = useAuth();
+
   return (
-    <div className="min-h-screen bg-brand-cream">
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
-        <Header />
-
-        <SummaryCards />
-
-        {/* Budget banner is full-width */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <BudgetBanner />
-          <CategoryFilter />
-        </div>
-
-
-        {/* Main bento grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-          {/* Left: list + chart stacked */}
-          <div className="md:col-span-7 space-y-4">
-            <TransactionList />
-            <SpendingChart />
-          </div>
-
-          {/* Right: make this column match the left column height */}
-          <div className="md:col-span-5 flex">
-            {/* flex-1 makes TransactionForm stretch vertically */}
-            <div className="flex-1">
-              <TransactionForm />
-            </div>
-          </div>
-        </div>
-
-
-
-        {/* Footer bento */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <Footer />
-        </div>
-
+    <>
+      <SceneBackground />
+      <div className="relative z-10">
+        {status === "loading" ? (
+          <p className="py-40 text-center font-mono text-sm text-ink-soft">Connecting...</p>
+        ) : user ? (
+          <FinanceProvider key={user.id}>
+            <Dashboard />
+          </FinanceProvider>
+        ) : (
+          <AuthPage />
+        )}
       </div>
-    </div>
+    </>
   );
 }

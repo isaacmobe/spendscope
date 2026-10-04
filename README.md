@@ -248,3 +248,13 @@ Then set budget to 12000 and watch the warning trigger.
 3. `cd client && npm ci && npm run dev` (app on port 5173; `/api` is proxied to the server).
 4. API tests: `cd server && npm test`. Database tests need a MongoDB: set `MONGO_TEST_URI` to a throwaway
    database, or leave it unset and the in-memory server downloads a `mongod` (needs internet access).
+
+### What the app does now
+
+- Log in or create an account (passwords hashed with scrypt, session in an httpOnly cookie). Every user only sees their own data.
+- Enter earnings in the centre hexagon. Six surrounding hexagons (Housing, Food, Transport, Bills, Lifestyle, Motorbike Fund) unlock and take your spending.
+- Each month's earnings are split into needs, wants and savings (default 50/30/20, editable in Settings). Each area shows how much of its share is used.
+- Set a motorbike goal (price, amount already saved, optional deadline) and see the projected month you can buy it.
+- Amounts can be entered and shown in KES or USD. The exchange rate is set by you in Settings (the default is only a placeholder).
+- A calm Three.js background reacts when you add earnings, spend or save. It respects "reduce motion", and is lighter on phones.
+- Client logic tests: `cd client && npm test`.
