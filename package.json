@@ -1,6 +1,7 @@
 {
-  "devDependencies": {
-    "@vitejs/plugin-react": "^5.1.2",
-    "vite": "^7.3.1"
-  }
+  "name": "spendscope",
+  "private": true,
+  "type": "module",
+  "description": "SpendScope: personal finance console. The app lives in client/ (React) and server/ (Express). This root file exists so the Vercel function in api/ runs as an ES module.",
+  "engines": { "node": ">=20.19" }
 }

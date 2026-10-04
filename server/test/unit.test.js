@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { HttpError, date, int, num, objectId, oneOf, parseBody, str } from "../utils/validate.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
+import { generateRecoveryCode, normalizeRecoveryCode } from "../utils/recovery.js";
+import { defaults } from "../config/defaults.js";
 
 const throws400 = (fn) => assert.throws(fn, (e) => e instanceof HttpError && e.status === 400);
 
@@ -52,4 +54,22 @@ test("password hashing is salted and verifies correctly", async () => {
   assert.equal(await verifyPassword("correct horse", a), true);
   assert.equal(await verifyPassword("wrong horse", a), false);
   assert.equal(await verifyPassword("x", "malformed"), false);
+});
+
+test("recovery codes are unique, well formed and tolerant when typed back", async () => {
+  const code = generateRecoveryCode();
+  assert.match(code, /^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$/);
+  assert.notEqual(code, generateRecoveryCode());
+  // Casing, spaces and dashes do not matter when the user types it in.
+  assert.equal(normalizeRecoveryCode(code.toLowerCase().replaceAll("-", " ")), normalizeRecoveryCode(code));
+  const hash = await hashPassword(normalizeRecoveryCode(code));
+  assert.equal(await verifyPassword(normalizeRecoveryCode(code), hash), true);
+  assert.equal(await verifyPassword(normalizeRecoveryCode(generateRecoveryCode()), hash), false);
+});
+
+test("new-account defaults are valid and add up", () => {
+  const a = defaults.allocation;
+  assert.equal(a.needs + a.wants + a.savings, 100);
+  assert.ok(defaults.usdToKes >= 1);
+  assert.ok(["KES", "USD"].includes(defaults.currency));
 });

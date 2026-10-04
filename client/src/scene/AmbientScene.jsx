@@ -11,9 +11,12 @@ import { onPulse } from "./events";
  * and expanding hexagon "ripples" when something happens (earning added, money spent or saved).
  * It never receives pointer events and sits behind the HTML interface.
  */
-const INDIGO = "#5558C8";
-const EMBER = "#E2793F";
-const PULSE_COLORS = { income: INDIGO, save: "#2E9C8F", spend: EMBER };
+// Colours per theme: indigo lines on cream, lighter indigo lines on soft black.
+const THEMES = {
+  light: { line: "#5E62C4", dust: "#2A2A31", lineOpacity: 0.28, plateOpacity: 0.025, dustOpacity: 0.35 },
+  dark: { line: "#9296EC", dust: "#ECE8DD", lineOpacity: 0.4, plateOpacity: 0.04, dustOpacity: 0.3 }
+};
+const PULSE_COLORS = { income: "#5E62C4", save: "#2E9C8F", spend: "#E2793F", milestone: "#D4A83A" };
 
 // Small deterministic random generator: the same layout every load, and pure for React.
 function seeded(seed) {
@@ -40,7 +43,7 @@ function useHexEdges() {
 }
 
 // Drifting hexagon wireframes with a faint translucent plate for depth.
-function Hexagons({ count, edges, animate }) {
+function Hexagons({ count, edges, animate, palette }) {
   const group = useRef(null);
   const items = useMemo(() => {
     const rnd = seeded(7);
@@ -70,11 +73,11 @@ function Hexagons({ count, edges, animate }) {
       {items.map((it, i) => (
         <group key={i} position={it.position} scale={it.scale} rotation={[it.tilt[0], it.tilt[1], it.phase]}>
           <lineSegments geometry={edges}>
-            <lineBasicMaterial color={INDIGO} transparent opacity={0.28} />
+            <lineBasicMaterial color={palette.line} transparent opacity={palette.lineOpacity} />
           </lineSegments>
           <mesh>
             <circleGeometry args={[1, 6]} />
-            <meshBasicMaterial color={INDIGO} transparent opacity={0.025} side={THREE.DoubleSide} depthWrite={false} />
+            <meshBasicMaterial color={palette.line} transparent opacity={palette.plateOpacity} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
         </group>
       ))}
@@ -83,7 +86,7 @@ function Hexagons({ count, edges, animate }) {
 }
 
 // Fine dust particles that slowly turn.
-function Dust({ count, animate }) {
+function Dust({ count, animate, palette }) {
   const points = useRef(null);
   const positions = useMemo(() => {
     const rnd = seeded(21);
@@ -105,7 +108,7 @@ function Dust({ count, animate }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color="#1E2130" size={0.045} transparent opacity={0.35} sizeAttenuation depthWrite={false} />
+      <pointsMaterial color={palette.dust} size={0.045} transparent opacity={palette.dustOpacity} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -114,7 +117,7 @@ function Dust({ count, animate }) {
 function Ripples({ edges, enabled }) {
   const POOL = 4;
   const rings = useRef([]);
-  const state = useRef(Array.from({ length: POOL }, () => ({ t: 1, color: INDIGO })));
+  const state = useRef(Array.from({ length: POOL }, () => ({ t: 1, color: PULSE_COLORS.income })));
   const next = useRef(0);
 
   useEffect(() => {
@@ -122,7 +125,7 @@ function Ripples({ edges, enabled }) {
     return onPulse((kind) => {
       const slot = state.current[next.current];
       slot.t = 0;
-      slot.color = PULSE_COLORS[kind] || INDIGO;
+      slot.color = PULSE_COLORS[kind] || PULSE_COLORS.income;
       const mesh = rings.current[next.current];
       if (mesh) mesh.material.color.set(slot.color);
       next.current = (next.current + 1) % POOL;
@@ -149,7 +152,7 @@ function Ripples({ edges, enabled }) {
     <>
       {Array.from({ length: POOL }, (_, i) => (
         <lineSegments key={i} ref={(el) => (rings.current[i] = el)} geometry={edges} visible={false} position={[0, 0, -3]}>
-          <lineBasicMaterial color={INDIGO} transparent opacity={0} />
+          <lineBasicMaterial color={PULSE_COLORS.income} transparent opacity={0} />
         </lineSegments>
       ))}
     </>
@@ -168,18 +171,19 @@ function Parallax({ children, animate }) {
 }
 
 // With reduced motion the loop is off, so draw one frame (and again on resize).
-function StaticRender({ active }) {
+function StaticRender({ active, version }) {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     if (active) invalidate();
-  }, [active, invalidate]);
+  }, [active, version, invalidate]);
   return null;
 }
 
-export default function AmbientScene({ lowPower }) {
+export default function AmbientScene({ lowPower, dark }) {
   const reduced = useReducedMotion();
   const edges = useHexEdges();
   const animate = !reduced;
+  const palette = dark ? THEMES.dark : THEMES.light;
 
   return (
     <Canvas
@@ -189,10 +193,10 @@ export default function AmbientScene({ lowPower }) {
       frameloop={animate ? "always" : "demand"}
       style={{ background: "transparent" }}
     >
-      <StaticRender active={!animate} />
+      <StaticRender active={!animate} version={dark} />
       <Parallax animate={animate}>
-        <Hexagons count={lowPower ? 7 : 16} edges={edges} animate={animate} />
-        <Dust count={lowPower ? 120 : 320} animate={animate} />
+        <Hexagons count={lowPower ? 7 : 16} edges={edges} animate={animate} palette={palette} />
+        <Dust count={lowPower ? 120 : 320} animate={animate} palette={palette} />
         <Ripples edges={edges} enabled={animate} />
       </Parallax>
     </Canvas>

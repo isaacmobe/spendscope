@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildSummary, futureBalance, monthsToReach, nextDueDate, requiredMonthly, saverLevel } from "./finance.js";
 import { convert, formatMoney } from "./money.js";
+import { MAX_LEVEL, PLAN } from "../config/plan.js";
 
 const NOW = new Date(2026, 9, 15); // 15 Oct 2026
 const settings = { currency: "KES", usdToKes: 100, allocation: { needs: 50, wants: 30, savings: 20 } };
@@ -161,6 +162,7 @@ test("safety net target is months of planned essentials", () => {
 
 test("saver level follows the share of earnings saved", () => {
   assert.deepEqual([0, 0.01, 0.07, 0.12, 0.17, 0.2, 0.4].map(saverLevel), [0, 1, 2, 3, 4, 5, 5]);
+  assert.equal(saverLevel(1), MAX_LEVEL);
   const s = buildSummary({
     transactions: [tx({ type: "income", category: "earnings", amount: 100000 }), tx({ category: "savings", amount: 12000 })],
     bills: [],
@@ -185,7 +187,7 @@ test("raise rule: earnings above last month suggest saving half of the increase"
     now: NOW
   });
   assert.equal(s.prevIncome, 100000);
-  assert.ok(s.insights.some((i) => i.tone === "good" && i.text.includes("half of any increase")));
+  assert.ok(s.insights.some((i) => i.tone === "good" && i.text.includes(`${Math.round(PLAN.raiseSaveShare * 100)}% of any increase`)));
 });
 
 test("variable spending is projected to month end and flagged when on pace to overspend", () => {
@@ -210,4 +212,64 @@ test("in the last week of the month, unspent money is flagged for savings", () =
   const early = buildSummary({ ...base, now: new Date(2026, 9, 5) });
   assert.ok(!early.insights.some((i) => i.text.includes("still unspent")));
   assert.ok(early.insights.some((i) => i.text.includes("Pay yourself first")));
+});
+
+test("safe to spend divides what is left of the living budget over the days left, today included", () => {
+  const s = buildSummary({
+    transactions: [tx({ type: "income", category: "earnings", amount: 100000 }), tx({ category: "food", amount: 10000 })],
+    bills: [],
+    goal: null,
+    settings,
+    now: new Date(2026, 9, 21) // day 21 of 31: 11 days left including today
+  });
+  assert.equal(s.livingPool, 80000); // needs 50,000 + wants 30,000
+  assert.equal(s.safeToSpend.remaining, 70000);
+  assert.equal(s.safeToSpend.days, 11);
+  assert.equal(Math.round(s.safeToSpend.perDay), Math.round(70000 / 11));
+  const none = buildSummary({ transactions: [], bills: [], goal: null, settings, now: NOW });
+  assert.equal(none.safeToSpend, null);
+});
+
+test("spending pace series is cumulative by day and counts bills on their due day", () => {
+  const s = buildSummary({
+    transactions: [
+      tx({ type: "income", category: "earnings", amount: 100000 }),
+      tx({ category: "food", amount: 1000, date: new Date(2026, 9, 2, 12).toISOString() }),
+      tx({ category: "food", amount: 500, date: new Date(2026, 9, 4, 12).toISOString() }),
+      tx({ category: "savings", amount: 9999, date: new Date(2026, 9, 3, 12).toISOString() }) // savings never counts as spending
+    ],
+    bills: [{ name: "Wi-Fi", amount: 3000, currency: "KES", dueDay: 3 }],
+    goal: null,
+    settings,
+    now: new Date(2026, 9, 5)
+  });
+  assert.deepEqual(s.trend.cumulative, [0, 1000, 4000, 4500, 4500]);
+  assert.equal(s.trend.days, 31);
+  assert.equal(s.trend.today, 5);
+});
+
+test("viewing a past month: totals as they ended, no forward-looking advice", () => {
+  const sep = (day) => new Date(2026, 8, day, 12).toISOString();
+  const s = buildSummary({
+    transactions: [
+      tx({ type: "income", category: "earnings", amount: 90000, date: sep(2) }),
+      tx({ category: "food", amount: 5000, date: sep(10) }),
+      tx({ category: "savings", amount: 10000, date: sep(20) }),
+      tx({ category: "savings", amount: 7000, date: new Date(2026, 9, 3, 12).toISOString() }) // later month
+    ],
+    bills: [{ name: "Rent", amount: 15000, currency: "KES", dueDay: 18 }],
+    goal: { name: "Motorbike", targetAmount: 250000, savedAmount: 0, currency: "KES", deadline: new Date(2027, 3, 1).toISOString() },
+    settings,
+    now: new Date(2026, 8, 15), // viewing September
+    today: new Date(2026, 9, 20) // while today is in October
+  });
+  assert.equal(s.isCurrent, false);
+  assert.equal(s.income, 90000);
+  assert.equal(s.goal.saved, 10000); // October's saving is not counted yet
+  assert.equal(s.goal.monthsToGo, null);
+  assert.equal(s.goal.required, null);
+  assert.equal(s.safeToSpend, null);
+  assert.equal(s.dueSoon.length, 0);
+  assert.equal(s.trend.today, 30); // the whole month
+  assert.ok(!s.insights.some((i) => /Pay yourself first|still unspent|due in|At this pace/.test(i.text)));
 });

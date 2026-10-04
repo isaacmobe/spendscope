@@ -75,6 +75,17 @@ test("CORS allow-list and security headers", async () => {
   assert.ok(good.headers.get("content-security-policy"));
 });
 
+test("recovery and account endpoints validate input or require login before touching the database", async () => {
+  // Recovery is public but must reject malformed input.
+  for (const body of [{}, { email: "a@b.co", recoveryCode: "x" }, { email: "a@b.co", recoveryCode: "AAAA", newPassword: "short" }, { email: { $ne: 1 }, recoveryCode: "AAAA", newPassword: "longenough1" }]) {
+    assert.equal((await send("POST", "/api/auth/recover", body)).status, 400, JSON.stringify(body));
+  }
+  // These need a logged-in session.
+  assert.equal((await send("POST", "/api/auth/password", { currentPassword: "a", newPassword: "longenough1" })).status, 401);
+  assert.equal((await send("POST", "/api/auth/recovery-code", { password: "a" })).status, 401);
+  assert.equal((await send("DELETE", "/api/auth/account", { password: "a" })).status, 401);
+});
+
 test("login endpoint is rate limited", async () => {
   let last;
   for (let i = 0; i < 25; i++) last = await send("POST", "/api/auth/login", { email: "x@y.co", password: { $ne: 1 } });

@@ -2,6 +2,7 @@ import { useAuth } from "./context/auth";
 import { FinanceProvider } from "./context/FinanceProvider";
 import AuthPage from "./components/AuthPage";
 import Dashboard from "./components/Dashboard";
+import RecoveryCodeDialog from "./components/RecoveryCodeDialog";
 import SceneBackground from "./scene/SceneBackground";
 
 /**
@@ -28,6 +29,7 @@ export default function App() {
           <AuthPage />
         )}
       </div>
+      {user && <RecoveryCodeDialog />}
     </>
   );
 }

@@ -2,21 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Page: soft cream with a faint engineering grid and a gentle vignette ---------- */
+/* ============================================================================
+   Theme variables. Colours are space-separated RGB so Tailwind can add opacity.
+   Light = soft cream and ink. Dark = soft black and cream ink (never pure black or white).
+   ============================================================================ */
+:root {
+  --c-bg: 241 238 230;
+  --c-bg-deep: 231 227 215;
+  --c-surface: 250 248 243;
+  --c-surface-2: 241 238 230;
+  --c-deep: 230 226 214;
+  --c-dark: 213 208 194;
+  --c-face-top: 253 251 246;
+  --c-face-bot: 236 232 220;
+  --c-ink: 42 42 49;
+  --c-ink-soft: 116 114 122;
+  --c-ink-faint: 166 163 155;
+  --c-accent: 94 98 196;
+  --c-accent-soft: 142 145 214;
+  --c-accent-wash: 228 229 244;
+  --c-accent-dark: 69 73 152;
+  --c-ember: 217 134 80;
+  --c-rose: 233 162 155;
+  --c-rose-deep: 188 95 88;
+  --c-rose-wash: 246 222 218;
+  --c-good: 123 158 138;
+  --c-bar-top: 61 61 70;
+  --c-bar-bot: 35 35 41;
+  --c-paper: 246 243 234;
+  --c-shadow: 42 42 49;
+  --glow: 94 98 196;
+}
+.dark {
+  --c-bg: 22 22 26;
+  --c-bg-deep: 14 14 17;
+  --c-surface: 41 41 48;
+  --c-surface-2: 32 32 38;
+  --c-deep: 49 49 57;
+  --c-dark: 63 63 73;
+  --c-face-top: 55 55 64;
+  --c-face-bot: 36 36 43;
+  --c-ink: 236 232 221;
+  --c-ink-soft: 163 160 169;
+  --c-ink-faint: 112 110 118;
+  --c-accent: 146 150 236;
+  --c-accent-soft: 118 122 206;
+  --c-accent-wash: 44 46 80;
+  --c-accent-dark: 178 181 247;
+  --c-ember: 234 158 106;
+  --c-rose: 226 150 143;
+  --c-rose-deep: 242 170 162;
+  --c-rose-wash: 78 46 48;
+  --c-good: 130 178 152;
+  --c-bar-top: 58 58 68;
+  --c-bar-bot: 36 36 43;
+  --c-paper: 246 243 234;
+  --c-shadow: 0 0 0;
+  --glow: 146 150 236;
+}
+
+/* ---------- Page: honeycomb grid over a soft vignette ---------- */
 body {
-  @apply font-sans text-ink antialiased;
+  @apply font-sans antialiased;
   min-height: 100vh;
-  background-color: #f1eee6;
+  color: rgb(var(--c-ink));
+  background-color: rgb(var(--c-bg));
+  background-size: 55.43px 96px, 100% 100%;
+  transition: background-color 0.4s, color 0.4s;
+}
+/* One hexagon tile (pointy-top, 32px radius) that repeats seamlessly into a honeycomb. */
+html:not(.dark) body {
   background-image:
-    linear-gradient(rgba(42, 42, 49, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(42, 42, 49, 0.035) 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='55.43' height='96' viewBox='0 0 55.43 96'%3E%3Cpath d='M27.71 0V16L0 32V64L27.71 80V96M27.71 16L55.43 32V64L27.71 80' fill='none' stroke='%232a2a31' stroke-opacity='0.075' stroke-width='1'/%3E%3C/svg%3E"),
     radial-gradient(ellipse at 50% 28%, #fbf9f4 0%, #f1eee6 55%, #e7e3d7 100%);
-  background-size: 36px 36px, 36px 36px, 100% 100%;
-  background-attachment: fixed;
+}
+html.dark body {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='55.43' height='96' viewBox='0 0 55.43 96'%3E%3Cpath d='M27.71 0V16L0 32V64L27.71 80V96M27.71 16L55.43 32V64L27.71 80' fill='none' stroke='%23ece8dd' stroke-opacity='0.06' stroke-width='1'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 28%, #212127 0%, #16161a 55%, #0e0e11 100%);
+}
+@media (min-width: 768px) {
+  body {
+    background-attachment: fixed;
+  }
 }
 
 :focus-visible {
   outline: none;
+}
+::selection {
+  background: rgb(var(--c-accent) / 0.3);
 }
 
 /* Number inputs: no browser spinners. */
@@ -29,17 +104,50 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Slim cream scrollbars inside popups. */
-.soft-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #c9c4b6 transparent;
+/* Scrollable areas without a visible scrollbar. A soft fade at the edges hints that there is more. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.soft-scroll::-webkit-scrollbar {
-  width: 6px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-.soft-scroll::-webkit-scrollbar-thumb {
-  background: #c9c4b6;
-  border-radius: 6px;
+.fade-edges {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 26px), transparent 100%);
+}
+
+/* The long striped bar behind the top-bar controls. On phones it dissolves (display: contents) so the
+   controls wrap into two tidy rows; from md up it is the striped hexagon-ended bar of the reference. */
+.stripe-bar {
+  display: contents;
+}
+@media (min-width: 768px) {
+  .stripe-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex: 1;
+    height: 2.5rem;
+    margin-left: -1.25rem;
+    padding: 0 1.25rem 0 2.5rem;
+    clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 20px 100%, 0 50%);
+    background:
+      repeating-linear-gradient(125deg, rgb(var(--c-ink) / 0.06) 0 5px, transparent 5px 11px),
+      linear-gradient(180deg, rgb(var(--c-face-top)), rgb(var(--c-face-bot)));
+  }
+}
+
+/* Leave room above a tutorial target when it is scrolled into view (under the sticky popover area). */
+[data-tour] {
+  scroll-margin-top: 96px;
+}
+
+/* Dark bar surface used by the brand block, chips and popup headers (dark in both themes). */
+.bar-surface {
+  background: linear-gradient(180deg, rgb(var(--c-bar-top)), rgb(var(--c-bar-bot)));
+  color: rgb(var(--c-paper));
 }
 
 /* ============================================================================
@@ -52,15 +160,15 @@ input[type="number"] {
   .hx {
     --c: 14px;
     --b: 1.5px;
-    --edge: rgba(42, 42, 49, 0.42);
-    --face-top: #fdfbf6;
-    --face-bot: #eeeadf;
-    --ink: #2a2a31;
+    --edge: rgb(var(--c-ink) / 0.42);
+    --face-top: rgb(var(--c-face-top));
+    --face-bot: rgb(var(--c-face-bot));
+    --on: rgb(var(--c-ink));
     position: relative;
     display: inline-block;
     vertical-align: middle;
     transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s;
-    filter: drop-shadow(0 7px 9px rgba(42, 42, 49, 0.1)) drop-shadow(0 1px 1px rgba(42, 42, 49, 0.12));
+    filter: drop-shadow(0 7px 9px rgb(var(--c-shadow) / 0.1)) drop-shadow(0 1px 1px rgb(var(--c-shadow) / 0.12));
   }
   .hx__edge {
     display: block;
@@ -76,9 +184,9 @@ input[type="number"] {
     justify-content: center;
     gap: 0.5rem;
     overflow: hidden;
-    color: var(--ink);
+    color: var(--on);
     background: linear-gradient(180deg, var(--face-top), var(--face-bot));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -10px 14px rgba(42, 42, 49, 0.05);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), inset 0 -10px 14px rgb(var(--c-shadow) / 0.05);
     clip-path: polygon(
       calc(var(--c) * 0.9) 0,
       calc(100% - var(--c) * 0.9) 0,
@@ -94,7 +202,7 @@ input[type="number"] {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.6) 50%, transparent 62%);
+    background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.5) 50%, transparent 62%);
     transform: translateX(-130%);
   }
   .hx--btn:hover .hx__face::after {
@@ -108,7 +216,7 @@ input[type="number"] {
   }
   .hx--btn:active {
     transform: translateY(1px) scale(0.985);
-    filter: drop-shadow(0 2px 3px rgba(42, 42, 49, 0.18));
+    filter: drop-shadow(0 2px 3px rgb(var(--c-shadow) / 0.18));
   }
   .hx:disabled,
   .hx[aria-disabled="true"] {
@@ -119,38 +227,51 @@ input[type="number"] {
   /* Keyboard focus and typing: the outline turns indigo and glows. */
   .hx:focus-within,
   .hx:focus-visible {
-    --edge: #5e62c4;
-    filter: drop-shadow(0 0 7px rgba(94, 98, 196, 0.5)) drop-shadow(0 7px 9px rgba(42, 42, 49, 0.1));
+    --edge: rgb(var(--c-accent));
+    filter: drop-shadow(0 0 7px rgb(var(--glow) / 0.5)) drop-shadow(0 7px 9px rgb(var(--c-shadow) / 0.1));
   }
 
   /* Colour variants */
   .hx--solid {
-    --edge: #1c1c21;
-    --face-top: #3d3d46;
-    --face-bot: #232329;
-    --ink: #f4f1e8;
+    --edge: rgb(0 0 0 / 0.75);
+    --face-top: rgb(var(--c-bar-top));
+    --face-bot: rgb(var(--c-bar-bot));
+    --on: rgb(var(--c-paper));
+  }
+  .dark .hx--solid {
+    --edge: rgb(var(--c-ink) / 0.3);
   }
   .hx--accent {
-    --edge: #454998;
-    --face-top: #7a7ede;
-    --face-bot: #5a5ec6;
-    --ink: #ffffff;
+    --edge: rgb(var(--c-accent-dark));
+    --face-top: rgb(var(--c-accent));
+    --face-bot: rgb(var(--c-accent-soft));
+    --on: #ffffff;
+  }
+  .dark .hx--accent {
+    --face-top: rgb(110 114 214);
+    --face-bot: rgb(84 88 190);
+    --on: #ffffff;
+    --edge: rgb(var(--c-accent) / 0.8);
   }
   .hx--rose {
-    --edge: #bc5f58;
-    --face-top: #f4bdb7;
-    --face-bot: #e9958e;
-    --ink: #4a2420;
+    --edge: rgb(var(--c-rose-deep));
+    --face-top: rgb(var(--c-rose));
+    --face-bot: rgb(var(--c-rose) / 0.85);
+    --on: rgb(60 28 26);
+  }
+  .dark .hx--rose {
+    --face-top: rgb(150 82 78);
+    --face-bot: rgb(112 58 56);
+    --edge: rgb(var(--c-rose) / 0.7);
+    --on: rgb(255 232 228);
   }
   .hx--wash {
-    --edge: rgba(42, 42, 49, 0.28);
-    --face-top: #f7f5ee;
-    --face-bot: #e9e5d9;
+    --edge: rgb(var(--c-ink) / 0.28);
   }
   .hx--ghost {
-    --edge: rgba(42, 42, 49, 0.3);
-    --face-top: rgba(250, 248, 243, 0.7);
-    --face-bot: rgba(238, 234, 223, 0.7);
+    --edge: rgb(var(--c-ink) / 0.3);
+    --face-top: rgb(var(--c-face-top) / 0.65);
+    --face-bot: rgb(var(--c-face-bot) / 0.65);
   }
 
   .hx-input {
@@ -160,12 +281,12 @@ input[type="number"] {
     outline: none;
     padding: 0 1.4rem;
     height: 100%;
-    color: #2a2a31;
+    color: rgb(var(--c-ink));
     font-variant-numeric: tabular-nums;
-    caret-color: #5e62c4;
+    caret-color: rgb(var(--c-accent));
   }
   .hx-input::placeholder {
-    color: #a6a39b;
+    color: rgb(var(--c-ink-faint));
   }
   .hx-label {
     display: block;
@@ -174,7 +295,7 @@ input[type="number"] {
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: #74727a;
+    color: rgb(var(--c-ink-soft));
   }
 
   /* Small hexagon cell used by meters and bullets. */
@@ -182,15 +303,28 @@ input[type="number"] {
     clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   }
 
-  /* Popup: a tall hexagon (pointed left and right) with layered depth behind it. */
+  /* Tall hexagon (pointed left and right) for popups and panels. */
   .panel-shape {
     --pc: 34px;
     clip-path: polygon(var(--pc) 0, calc(100% - var(--pc)) 0, 100% 50%, calc(100% - var(--pc)) 100%, var(--pc) 100%, 0 50%);
   }
+
+  /* SVG helpers so shapes follow the theme. */
+  .svg-ink {
+    stroke: rgb(var(--c-ink) / 0.78);
+  }
+  .svg-ink-soft {
+    stroke: rgb(var(--c-ink) / 0.22);
+  }
+  .svg-face-stop-top {
+    stop-color: rgb(var(--c-face-top));
+  }
+  .svg-face-stop-bot {
+    stop-color: rgb(var(--c-face-bot));
+  }
 }
 
-
-/* ---------- Animations ---------- */
+/* ---------- Animations (kept calm: ease-out, short, and off for reduced motion) ---------- */
 @keyframes sheen {
   to {
     transform: translateX(130%);
@@ -272,9 +406,58 @@ input[type="number"] {
     transform: translateY(4px);
   }
 }
+@keyframes ping-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: var(--len, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tour-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 .anim-rise {
   animation: rise-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.anim-page {
+  animation: page-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .anim-float {
   animation: float-y 5.5s ease-in-out infinite alternate;
@@ -295,6 +478,20 @@ input[type="number"] {
 .anim-chevron {
   animation: chevron-drop 1.8s ease-in-out infinite;
 }
+.anim-ping {
+  animation: ping-ring 900ms ease-out both;
+  transform-origin: 50% 50%;
+}
+.anim-draw {
+  stroke-dasharray: var(--len, 1000);
+  animation: draw-line 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.anim-toast {
+  animation: toast-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.anim-tour {
+  animation: tour-pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 
 /* Popups open with a 3D tilt-in and close with a short fade. */
 dialog.popup {
@@ -304,9 +501,10 @@ dialog.popup {
   max-width: none;
   max-height: none;
   overflow: visible;
+  color: rgb(var(--c-ink));
 }
 dialog.popup::backdrop {
-  background: radial-gradient(ellipse at center, rgba(241, 238, 230, 0.55), rgba(42, 42, 49, 0.42));
+  background: radial-gradient(ellipse at center, rgb(var(--c-bg) / 0.55), rgb(var(--c-shadow) / 0.5));
   backdrop-filter: blur(5px);
   animation: fade-in 260ms ease both;
 }
@@ -327,6 +525,7 @@ dialog.popup[data-closing="true"] .popup-card {
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
   }
 }

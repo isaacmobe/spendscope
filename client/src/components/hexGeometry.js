@@ -35,3 +35,10 @@ export const HEX_PATH_CORE = roundedHexPath(7);
 
 // Vertical centre of the hexagon, used to rotate things about the middle.
 export const HEX_CENTER = { x: 50, y: 57.735 };
+
+// Points string of a small pointy-top hexagon centred at (cx, cy), for icon badges.
+export const hexPoints = (cx, cy, r) =>
+  Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 180) * (60 * i - 90);
+    return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+  }).join(" ");

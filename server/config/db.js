@@ -1,24 +1,39 @@
 import mongoose from "mongoose";
 
+// Small pool and quick failure: serverless functions open many short-lived connections,
+// and a free Atlas cluster allows only 500 of them in total.
+const options = { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 };
+
 /**
  * connectDB()
- * - Single responsibility: connect to MongoDB using Mongoose.
- * - Why: keeps server startup (index.js) clean and makes DB logic reusable/testable.
+ * - For the long-running server: connect once at startup and stop the process if it fails.
  */
 const connectDB = async () => {
   try {
-    // process.env.MONGO_URI comes from your .env file
-    // mongoose.connect returns a connection object when successful
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-
-    // Helpful log so you know exactly which host you're connected to
+    const conn = await mongoose.connect(process.env.MONGO_URI, options);
     console.log(`MongoDB connected Host: ${conn.connection.host}`);
   } catch (error) {
-    // If DB connection fails, your API can’t function correctly.
-    // We "fail fast" by stopping the process.
+    // If the database is unreachable the API cannot work, so fail fast.
     console.error("MongoDB connection failed:", error.message);
     process.exit(1);
   }
 };
+
+/**
+ * connectOnce()
+ * - For serverless (Vercel): the module stays alive between requests while the function is warm,
+ *   so reuse the same connection instead of opening a new one per request.
+ */
+let pending = null;
+export function connectOnce() {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (!pending) {
+    pending = mongoose.connect(process.env.MONGO_URI, options).catch((err) => {
+      pending = null; // allow a retry on the next request
+      throw err;
+    });
+  }
+  return pending;
+}
 
 export default connectDB;

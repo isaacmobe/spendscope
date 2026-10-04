@@ -1,7 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { requireAuth } from "../middleware/auth.middleware.js";
-import { login, logout, me, register, updateSettings } from "../controllers/auth.controller.js";
+import { changePassword, deleteAccount, login, logout, me, recover, register, regenerateRecoveryCode, updateSettings } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -16,8 +16,13 @@ const authLimiter = rateLimit({
 
 router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
+router.post("/recover", authLimiter, recover);
 router.post("/logout", logout);
 router.get("/me", requireAuth, me);
 router.patch("/settings", requireAuth, updateSettings);
+// Sensitive actions re-check the password and share the strict limiter.
+router.post("/password", requireAuth, authLimiter, changePassword);
+router.post("/recovery-code", requireAuth, authLimiter, regenerateRecoveryCode);
+router.delete("/account", requireAuth, authLimiter, deleteAccount);
 
 export default router;

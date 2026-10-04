@@ -7,7 +7,7 @@
 export default function HexCard({ children, className = "" }) {
   return (
     <div className={`relative ${className}`}>
-      <div style={{ filter: "drop-shadow(0 34px 38px rgba(42,42,49,0.30)) drop-shadow(0 8px 10px rgba(42,42,49,0.16))" }}>
+      <div style={{ filter: "drop-shadow(0 34px 38px rgb(var(--c-shadow) / 0.3)) drop-shadow(0 8px 10px rgb(var(--c-shadow) / 0.16))" }}>
         {/* Back plates give the stacked, floating look. */}
         <div aria-hidden className="panel-shape absolute inset-0 translate-x-3 translate-y-3 bg-cream-dark" />
         <div aria-hidden className="panel-shape absolute inset-0 translate-x-1.5 translate-y-1.5 bg-cream-deep" />

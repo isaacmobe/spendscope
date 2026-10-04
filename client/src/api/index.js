@@ -23,5 +23,9 @@ export const authApi = {
   login: (payload) => body(http.post("/api/auth/login", payload)),
   logout: () => body(http.post("/api/auth/logout")),
   me: () => body(http.get("/api/auth/me")),
-  updateSettings: (payload) => body(http.patch("/api/auth/settings", payload))
+  updateSettings: (payload) => body(http.patch("/api/auth/settings", payload)),
+  recover: (payload) => body(http.post("/api/auth/recover", payload)),
+  changePassword: (payload) => body(http.post("/api/auth/password", payload)),
+  newRecoveryCode: (payload) => body(http.post("/api/auth/recovery-code", payload)),
+  deleteAccount: (payload) => body(http.delete("/api/auth/account", { data: payload }))
 };

@@ -1,6 +1,12 @@
 /** @type {import('tailwindcss').Config} */
+
+// Colours are CSS variables (see index.css) so one class works in light and dark mode,
+// and Tailwind opacity modifiers such as bg-ink/70 keep working.
+const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -8,19 +14,18 @@ export default {
         mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
       },
       /**
-       * Palette: creamy black and white, softened.
+       * Palette: creamy black and white, softened, with a matching dark mode.
        * Colour is rationed, as in the reference console: indigo for the active value, orange for a
        * highlighted word, rose for warnings and the status bar. Everything else is cream and ink.
        */
       colors: {
-        cream: { DEFAULT: "#F1EEE6", light: "#FAF8F3", deep: "#E6E2D6", dark: "#D5D0C2" },
-        ink: { DEFAULT: "#2A2A31", soft: "#74727A", faint: "#A6A39B" },
-        accent: { DEFAULT: "#5E62C4", soft: "#8E91D6", wash: "#E4E5F4", dark: "#454998" },
-        ember: "#D98650",
-        rose: { DEFAULT: "#E9A29B", deep: "#BC5F58", wash: "#F6DEDA" }
-      },
-      boxShadow: {
-        lift: "0 18px 40px -18px rgba(42,42,49,0.35), 0 6px 14px -8px rgba(42,42,49,0.18)"
+        cream: { DEFAULT: v("surface-2"), light: v("surface"), deep: v("deep"), dark: v("dark") },
+        ink: { DEFAULT: v("ink"), soft: v("ink-soft"), faint: v("ink-faint") },
+        accent: { DEFAULT: v("accent"), soft: v("accent-soft"), wash: v("accent-wash"), dark: v("accent-dark") },
+        ember: v("ember"),
+        good: v("good"),
+        rose: { DEFAULT: v("rose"), deep: v("rose-deep"), wash: v("rose-wash") },
+        paper: v("paper")
       }
     }
   },

@@ -16,6 +16,10 @@ import { errorHandler } from "./middleware/error.middleware.js";
 export function buildApp() {
   const app = express();
 
+  // Behind a reverse proxy (Vercel, Render, nginx) the real client IP arrives in X-Forwarded-For.
+  // Without this every visitor would share one rate-limit bucket. Set TRUST_PROXY=1 to enable.
+  if (process.env.TRUST_PROXY || process.env.VERCEL) app.set("trust proxy", 1);
+
   // Security headers (CSP, no MIME sniffing, hides X-Powered-By, etc.)
   app.use(helmet());
 

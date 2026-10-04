@@ -1,13 +1,16 @@
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import { buildApp } from "./app.js";
+import { assertConfig } from "./config/check.js";
 
 // Load environment variables BEFORE anything reads process.env
 dotenv.config();
 
 // Fail fast if the signing secret is missing or weak: logins would be forgeable.
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  console.error("JWT_SECRET must be set to a random string of at least 32 characters.");
+try {
+  assertConfig();
+} catch (err) {
+  console.error(err.message);
   process.exit(1);
 }
 

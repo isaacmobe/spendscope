@@ -139,3 +139,40 @@ dbTest("bills and settings", async () => {
   assert.equal((await api("PATCH", "/api/auth/settings", { emergencyMonths: 2.5 })).status, 400);
 });
 
+
+dbTest("recovery code resets a forgotten password and is single-use", async () => {
+  const api = client();
+  const reg = await api("POST", "/api/auth/register", { email: "rec@test.com", password: "originalpass1" });
+  assert.equal(reg.status, 201);
+  assert.match(reg.body.recoveryCode, /^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
+  assert.equal(reg.body.data.hasRecoveryCode, true);
+
+  const other = client();
+  assert.equal((await other("POST", "/api/auth/recover", { email: "rec@test.com", recoveryCode: "AAAA-AAAA-AAAA-AAAA", newPassword: "brandnewpass1" })).status, 401);
+  const ok = await other("POST", "/api/auth/recover", { email: "rec@test.com", recoveryCode: reg.body.recoveryCode.toLowerCase(), newPassword: "brandnewpass1" });
+  assert.equal(ok.status, 200);
+  assert.notEqual(ok.body.recoveryCode, reg.body.recoveryCode);
+  // Old password is gone, new one works, and the used code no longer works.
+  assert.equal((await client()("POST", "/api/auth/login", { email: "rec@test.com", password: "originalpass1" })).status, 401);
+  assert.equal((await client()("POST", "/api/auth/login", { email: "rec@test.com", password: "brandnewpass1" })).status, 200);
+  assert.equal((await client()("POST", "/api/auth/recover", { email: "rec@test.com", recoveryCode: reg.body.recoveryCode, newPassword: "anotherpass12" })).status, 401);
+});
+
+dbTest("change password, new recovery code and account deletion need the current password", async () => {
+  const api = client();
+  await api("POST", "/api/auth/register", { email: "pw@test.com", password: "originalpass1" });
+  await api("POST", "/api/transactions", { title: "x", amount: 5, type: "expense" });
+
+  assert.equal((await api("POST", "/api/auth/password", { currentPassword: "wrongwrong1", newPassword: "changedpass12" })).status, 403);
+  assert.equal((await api("POST", "/api/auth/password", { currentPassword: "originalpass1", newPassword: "changedpass12" })).status, 200);
+  assert.equal((await client()("POST", "/api/auth/login", { email: "pw@test.com", password: "changedpass12" })).status, 200);
+
+  assert.equal((await api("POST", "/api/auth/recovery-code", { password: "nope12345" })).status, 403);
+  const fresh = await api("POST", "/api/auth/recovery-code", { password: "changedpass12" });
+  assert.equal(fresh.status, 200);
+  assert.ok(fresh.body.recoveryCode);
+
+  assert.equal((await api("DELETE", "/api/auth/account", { password: "wrongwrong1" })).status, 403);
+  assert.equal((await api("DELETE", "/api/auth/account", { password: "changedpass12" })).status, 200);
+  assert.equal((await client()("POST", "/api/auth/login", { email: "pw@test.com", password: "changedpass12" })).status, 401);
+});

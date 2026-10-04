@@ -3,16 +3,22 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthProvider.jsx";
+import { ThemeProvider } from "./context/ThemeProvider.jsx";
+import { ToastProvider } from "./context/ToastProvider.jsx";
 
 /**
  * main.jsx
  * --------
- * App root. AuthProvider wraps everything so any component can know who is logged in.
+ * App root. ThemeProvider (light/dark) and AuthProvider (who is logged in) wrap everything.
  */
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );
