@@ -12,11 +12,11 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGO_URI);
 
     // Helpful log so you know exactly which host you're connected to
-    console.log(`MongoDB connected ✅ Host: ${conn.connection.host}`);
+    console.log(`MongoDB connected Host: ${conn.connection.host}`);
   } catch (error) {
     // If DB connection fails, your API can’t function correctly.
     // We "fail fast" by stopping the process.
-    console.error("MongoDB connection failed ❌:", error.message);
+    console.error("MongoDB connection failed:", error.message);
     process.exit(1);
   }
 };

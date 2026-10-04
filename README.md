@@ -237,3 +237,14 @@ Try adding:
 Then set budget to 12000 and watch the warning trigger.
 
 ---
+
+---
+
+## Running locally (updated setup)
+
+1. `cd server && npm ci`, then copy `server/.env.example` to `server/.env` and fill it in
+   (`MONGO_URI`, `JWT_SECRET` of 32+ random characters, `CLIENT_ORIGIN`). `.env` is gitignored: never commit it.
+2. `npm run dev` in `server/` (API on port 5000).
+3. `cd client && npm ci && npm run dev` (app on port 5173; `/api` is proxied to the server).
+4. API tests: `cd server && npm test`. Database tests need a MongoDB: set `MONGO_TEST_URI` to a throwaway
+   database, or leave it unset and the in-memory server downloads a `mongod` (needs internet access).

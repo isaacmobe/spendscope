@@ -1,55 +1,23 @@
 import mongoose from "mongoose";
+import { CURRENCIES } from "./User.js";
 
 /**
- * TransactionSchema
- * - Defines the shape of a "transaction" document in MongoDB.
- * - Mongoose uses this to validate data before saving.
- * - This is your single source of truth for what "valid data" is.
+ * Transaction: one earning (income) or spending (expense) entry.
+ * `user` ties every row to its owner; all queries filter by it.
+ * `category` is the spending area (e.g. Housing, Food, Transport).
+ * `currency` is the currency the amount was entered in (KES or USD).
  */
 const TransactionSchema = new mongoose.Schema(
   {
-    // Short human-friendly label: "Fuel", "Rent", "Salary"
-    title: {
-      type: String,
-      required: [true, "Title is required"], // Custom error message
-      trim: true, // Removes extra spaces
-      maxlength: [60, "Title must be 60 characters or less"]
-    },
-
-    // Amount stored as Number for easy sums/aggregations and charts
-    amount: {
-      type: Number,
-      required: [true, "Amount is required"],
-      min: [0.01, "Amount must be greater than 0"]
-    },
-
-    // We keep it explicit: income vs expense
-    type: {
-      type: String,
-      required: [true, "Type is required"],
-      enum: ["income", "expense"] // Only allow these two values
-    },
-
-    // Optional, but helpful for analysis later
-    category: {
-      type: String,
-      default: "General",
-      trim: true,
-      maxlength: [30, "Category must be 30 characters or less"]
-    },
-
-    // When the transaction occurred (defaults to "now")
-    date: {
-      type: Date,
-      default: Date.now
-    }
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    title: { type: String, required: [true, "Title is required"], trim: true, maxlength: [60, "Title must be 60 characters or less"] },
+    amount: { type: Number, required: [true, "Amount is required"], min: [0.01, "Amount must be greater than 0"] },
+    currency: { type: String, enum: CURRENCIES, default: "KES" },
+    type: { type: String, required: [true, "Type is required"], enum: ["income", "expense"] },
+    category: { type: String, default: "General", trim: true, maxlength: [30, "Category must be 30 characters or less"] },
+    date: { type: Date, default: Date.now }
   },
-  {
-    // Adds createdAt + updatedAt automatically
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-// Export the model:
-// - Mongo collection will be named "transactions" (pluralized by Mongoose)
 export default mongoose.model("Transaction", TransactionSchema);
