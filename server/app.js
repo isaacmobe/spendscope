@@ -20,7 +20,7 @@ export function buildApp() {
   app.use(helmet());
 
   // Only the configured browser origin may call the API, with cookies.
-  app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173", credentials: true }));
+  app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5290", credentials: true }));
 
   // Small body limit: transactions are tiny, large payloads are abuse.
   app.use(express.json({ limit: "10kb" }));

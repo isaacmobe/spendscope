@@ -16,12 +16,14 @@ export function convert(amount, from, to, usdToKes) {
 }
 
 // "KES 12,500" or "$1,250.50". KES has no minor unit in daily use, so no decimals.
+// Negative amounts put the sign first: "-KES 500", "-$12.40".
 export function formatMoney(amount, currency) {
   const n = Number(amount) || 0;
   const isUsd = currency === "USD";
   const formatted = new Intl.NumberFormat(isUsd ? "en-US" : "en-KE", {
     minimumFractionDigits: 0,
     maximumFractionDigits: isUsd ? 2 : 0
-  }).format(n);
-  return isUsd ? `$${formatted}` : `KES ${formatted}`;
+  }).format(Math.abs(n));
+  const sign = n < 0 && Number(formatted.replace(/[^\d]/g, "")) > 0 ? "-" : "";
+  return `${sign}${isUsd ? "$" : "KES "}${formatted}`;
 }

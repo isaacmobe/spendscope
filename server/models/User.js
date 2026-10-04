@@ -9,6 +9,8 @@ export const CURRENCIES = ["KES", "USD"];
  * - passwordHash: scrypt hash, never the password itself (and hidden from queries by default).
  * - settings.usdToKes: user-editable exchange rate (no external FX service needed).
  * - settings.allocation: how new earnings are split (needs / wants / savings), must total 100.
+ * - settings.savingsApr: expected yearly growth of money you save, in percent (0 = kept as cash).
+ * - settings.emergencyMonths: how many months of essential costs the emergency fund should cover.
  */
 const UserSchema = new mongoose.Schema(
   {
@@ -18,6 +20,8 @@ const UserSchema = new mongoose.Schema(
     settings: {
       currency: { type: String, enum: CURRENCIES, default: "KES" },
       usdToKes: { type: Number, min: 1, max: 10000, default: 129 },
+      savingsApr: { type: Number, min: 0, max: 30, default: 0 },
+      emergencyMonths: { type: Number, min: 1, max: 12, default: 3 },
       allocation: {
         needs: { type: Number, min: 0, max: 100, default: 50 },
         wants: { type: Number, min: 0, max: 100, default: 30 },

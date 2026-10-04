@@ -1,14 +1,22 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "../hooks/useReducedMotion";
+import HexCard from "./HexCard";
+import { IconClose } from "./icons";
 
 /**
  * Modal
  * -----
- * Built on the native <dialog> element: the browser provides the focus trap, the Escape
- * key, the backdrop and screen-reader semantics, so we write almost no code for them.
- * Children are only rendered while open, so forms reset every time it is reopened.
+ * A popup shaped like a tall hexagon, with two back plates for depth, a 3D tilt-in on open
+ * and a short fade-out on close.
+ * It sits on the native <dialog> element, so the browser still provides the focus trap, the
+ * Escape key and screen-reader semantics; we only restyle it.
+ * Children render only while open, so forms reset every time it is reopened.
  */
 export default function Modal({ open, onClose, title, subtitle, children }) {
   const ref = useRef(null);
+  const timer = useRef(null);
+  const [closing, setClosing] = useState(false);
+  const reduced = useReducedMotion();
 
   // Keep the dialog's real open state in sync with the `open` prop.
   useEffect(() => {
@@ -18,34 +26,56 @@ export default function Modal({ open, onClose, title, subtitle, children }) {
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  // Play the closing animation, then tell the parent to close.
+  const requestClose = () => {
+    if (closing) return;
+    if (reduced) return onClose();
+    setClosing(true);
+    timer.current = setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, 200);
+  };
+
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
-      // A click on the dialog element itself (not its content) means the backdrop was clicked.
-      onClick={(e) => e.target === ref.current && onClose()}
-      aria-labelledby="modal-title"
-      className="m-auto max-h-[90vh] w-[min(94vw,540px)] overflow-hidden border border-ink bg-paper-light p-0 text-ink shadow-2xl backdrop:bg-ink/40 backdrop:backdrop-blur-sm"
+      className="popup"
+      data-closing={closing}
+      aria-labelledby="popup-title"
+      onCancel={(e) => {
+        e.preventDefault();
+        requestClose();
+      }}
+      // A click on the dialog itself (its transparent padding), not the card, means the backdrop.
+      onClick={(e) => e.target === ref.current && requestClose()}
     >
       {open && (
-        <div className="flex max-h-[90vh] flex-col">
-          <header className="flex items-start justify-between gap-4 bg-ink px-5 py-3 text-paper-light">
-            <div>
-              <h2 id="modal-title" className="text-sm font-semibold uppercase tracking-[0.2em]">
-                {title}
-              </h2>
-              {subtitle && <p className="mt-0.5 text-xs text-paper-light/70">{subtitle}</p>}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="-mr-2 px-2 text-xl leading-none text-paper-light/80 hover:text-white"
-            >
-              &times;
-            </button>
-          </header>
-          <div className="overflow-y-auto p-5">{children}</div>
+        <div className="popup-card w-[min(92vw,580px)]">
+          <HexCard>
+            <header className="flex items-center justify-between gap-4 bg-gradient-to-b from-[#3d3d46] to-[#25252b] py-3 pl-12 pr-10 text-cream-light">
+              <div className="flex items-center gap-3">
+                <span className="hexcell anim-pulse-soft h-3 w-3 bg-accent-soft" />
+                <div>
+                  <h2 id="popup-title" className="text-[13px] font-semibold uppercase tracking-[0.24em]">
+                    {title}
+                  </h2>
+                  {subtitle && <p className="mt-0.5 text-[11px] tracking-wide text-cream-light/65">{subtitle}</p>}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={requestClose}
+                aria-label="Close"
+                className="grid h-8 w-8 place-items-center text-cream-light/80 transition hover:rotate-90 hover:text-white"
+              >
+                <IconClose className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="soft-scroll max-h-[64vh] overflow-y-auto px-12 py-6">{children}</div>
+          </HexCard>
         </div>
       )}
     </dialog>

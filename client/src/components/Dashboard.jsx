@@ -2,39 +2,28 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/auth";
 import { useFinance } from "../context/finance";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useParallax } from "../hooks/useParallax";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { useStageScale } from "../hooks/useStageScale";
 import { formatMoney } from "../lib/money";
+import Circuit from "./Circuit";
 import CoreHex from "./CoreHex";
 import HexNode from "./HexNode";
 import NodeDialog from "./NodeDialog";
 import PlanPanel from "./PlanPanel";
 import SettingsDialog from "./SettingsDialog";
 import TopBar from "./TopBar";
-
-// Desktop stage: a fixed 1100 x 660 design space that scales down to fit narrower screens.
-const STAGE = { width: 1100, height: 660 };
-const CORE = { x: 400, y: 160, size: 300 };
-const NODE_SIZE = 150;
-// Three nodes down each side of the core, mirroring the reference console.
-const NODES = [
-  { id: "housing", side: "left", pos: { x: 330, y: 20 } },
-  { id: "food", side: "left", pos: { x: 250, y: 245 } },
-  { id: "transport", side: "left", pos: { x: 330, y: 470 } },
-  { id: "bills", side: "right", pos: { x: 620, y: 20 } },
-  { id: "lifestyle", side: "right", pos: { x: 700, y: 245 } },
-  { id: "savings", side: "right", pos: { x: 620, y: 470 } }
-];
-
-// Centre of a node, used to draw the connector lines from the core.
-const center = (pos, size) => ({ x: pos.x + size / 2, y: pos.y + (size * 1.1547) / 2 });
+import { CORE, NODES, NODE_SIZE, STAGE } from "./stage";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { loading, error, clearError, summary, addEarning } = useFinance();
-  const [target, setTarget] = useState(null); // which dialog is open: an area id, "earnings" or null
+  const { loading, error, clearError, summary, addEarning, addSpending } = useFinance();
+  const [target, setTarget] = useState(null); // which popup is open: an area id, "earnings" or null
   const [settingsOpen, setSettingsOpen] = useState(false);
   const desktop = useMediaQuery("(min-width: 768px)");
+  const reduced = useReducedMotion();
   const [stageRef, scale] = useStageScale(STAGE.width);
+  const tiltRef = useParallax(desktop && !reduced);
 
   // Error banner disappears by itself after a few seconds.
   useEffect(() => {
@@ -45,14 +34,13 @@ export default function Dashboard() {
 
   const locked = summary.income <= 0; // nodes unlock once earnings exist
   const { currency } = summary;
-  const coreCenter = center(CORE, CORE.size);
 
   // Build the six nodes from the summary. Savings shows goal progress; others show budget use.
   const nodes = NODES.map((n, i) => {
     const area = summary.areas.find((a) => a.id === n.id);
     const isSavings = area.id === "savings";
     const fill = isSavings ? (summary.goal ? summary.goal.progress : 0) : Math.min(1, area.ratio);
-    const tone = !isSavings && area.ratio > 1 ? "over" : !isSavings && area.ratio > 0.85 ? "warn" : "ok";
+    const tone = isSavings ? "good" : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
 
     let detail;
     let highlight = "";
@@ -82,27 +70,35 @@ export default function Dashboard() {
         tone={tone}
         detail={detail}
         highlight={highlight}
+        selected={target === area.id}
         desktop={desktop}
         pos={n.pos}
         size={NODE_SIZE}
-        delay={120 + i * 90}
+        delay={150 + i * 100}
         onOpen={() => setTarget(area.id)}
       />
     );
   });
 
-  const core = (
-    <CoreHex summary={summary} onAdd={addEarning} onHistory={() => setTarget("earnings")} desktop={desktop} pos={CORE} size={CORE.size} />
-  );
+  const core = <CoreHex summary={summary} onAdd={addEarning} onHistory={() => setTarget("earnings")} desktop={desktop} pos={CORE} size={CORE.size} />;
+
+  // Move this month's unspent money into the savings goal (one entry, easy to delete).
+  const sweep = () => addSpending("savings", Math.floor(summary.leftover * 100) / 100, "Unspent, moved to savings").catch(() => {});
 
   return (
     <div className="min-h-screen">
       <TopBar onSettings={() => setSettingsOpen(true)} />
 
       {error && (
-        <div role="alert" className="mx-auto mt-3 flex max-w-3xl items-center justify-between gap-3 bg-salmon px-4 py-2 text-sm font-medium text-ink">
-          <span>{error}</span>
-          <button type="button" onClick={clearError} aria-label="Dismiss" className="text-lg leading-none">&times;</button>
+        <div role="alert" className="hx hx--rose mx-auto mt-4 block max-w-3xl" style={{ "--c": "20px" }}>
+          <span className="hx__edge">
+            <span className="hx__face justify-between gap-3 px-9 py-2 text-[13px] font-medium">
+              <span>{error}</span>
+              <button type="button" onClick={clearError} aria-label="Dismiss" className="text-lg leading-none">
+                &times;
+              </button>
+            </span>
+          </span>
         </div>
       )}
 
@@ -110,49 +106,33 @@ export default function Dashboard() {
         {loading ? (
           <p className="py-24 text-center font-mono text-sm text-ink-soft">Loading your data...</p>
         ) : desktop ? (
-          // Desktop: absolutely positioned hexagons inside a scaled design space.
+          // Desktop: absolutely positioned hexagons inside a scaled design space with layered parallax.
           <div ref={stageRef} className="relative mx-auto" style={{ maxWidth: STAGE.width, height: STAGE.height * scale }}>
             <div className="absolute left-0 top-0 origin-top-left" style={{ width: STAGE.width, height: STAGE.height, transform: `scale(${scale})` }}>
-              {/* Connector lines from the core to every node; dashes flow once unlocked. */}
-              <svg className="pointer-events-none absolute inset-0" width={STAGE.width} height={STAGE.height} aria-hidden="true">
-                {NODES.map((n) => {
-                  const c = center(n.pos, NODE_SIZE);
-                  return (
-                    <line
-                      key={n.id}
-                      x1={coreCenter.x}
-                      y1={coreCenter.y}
-                      x2={c.x}
-                      y2={c.y}
-                      stroke={locked ? "#C9C8C2" : "#5558C8"}
-                      strokeOpacity={locked ? 1 : 0.55}
-                      strokeWidth="1.5"
-                      strokeDasharray="6 6"
-                      className={locked ? "" : "animate-flow"}
-                    />
-                  );
-                })}
-              </svg>
-              {nodes}
-              {core}
+              <div ref={tiltRef} className="relative h-full w-full">
+                <Circuit locked={locked} />
+                {nodes}
+                {core}
+              </div>
             </div>
           </div>
         ) : (
           // Mobile: core first, then the six areas in a two-column grid.
-          <div className="space-y-8">
+          <div className="space-y-10">
             {core}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-8">{nodes}</div>
+            <div className="mb-10 grid grid-cols-2 gap-x-3 gap-y-10">{nodes}</div>
           </div>
         )}
       </main>
 
-      {!loading && (
-        <PlanPanel summary={summary} allocation={user.settings.allocation} onOpenGoal={() => setTarget("savings")} />
-      )}
+      {!loading && <PlanPanel summary={summary} allocation={user.settings.allocation} onOpenGoal={() => setTarget("savings")} onSweep={sweep} />}
+
+      <p className="pointer-events-none fixed bottom-3 left-4 hidden items-center lg:flex gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-ink/45">
+        <span className="hexcell anim-pulse-soft h-2 w-2 bg-accent" /> Link status: normal
+      </p>
 
       <NodeDialog target={target} onClose={() => setTarget(null)} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
-

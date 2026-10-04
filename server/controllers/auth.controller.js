@@ -1,7 +1,7 @@
 import User, { CURRENCIES } from "../models/User.js";
 import { clearAuthCookie, setAuthCookie } from "../middleware/auth.middleware.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
-import { HttpError, num, oneOf, parseBody, str } from "../utils/validate.js";
+import { HttpError, int, num, oneOf, parseBody, str } from "../utils/validate.js";
 
 // Shape returned to the client: never includes the password hash.
 const publicUser = (u) => ({ id: u._id, email: u.email, name: u.name, settings: u.settings });
@@ -68,6 +68,8 @@ export const updateSettings = async (req, res) => {
     {
       currency: [(v) => oneOf(v, "currency", CURRENCIES), false],
       usdToKes: [(v) => num(v, "usdToKes", { min: 1, max: 10000 }), false],
+      savingsApr: [(v) => num(v, "savingsApr", { min: 0, max: 30 }), false],
+      emergencyMonths: [(v) => int(v, "emergencyMonths", { min: 1, max: 12 }), false],
       name: [(v) => str(v, "name", { max: 60 }), false],
       allocation: [
         (v) => {
@@ -92,6 +94,8 @@ export const updateSettings = async (req, res) => {
   if (body.name !== undefined) $set.name = body.name;
   if (body.currency) $set["settings.currency"] = body.currency;
   if (body.usdToKes) $set["settings.usdToKes"] = body.usdToKes;
+  if (body.savingsApr !== undefined) $set["settings.savingsApr"] = body.savingsApr;
+  if (body.emergencyMonths) $set["settings.emergencyMonths"] = body.emergencyMonths;
   if (body.allocation) $set["settings.allocation"] = body.allocation;
 
   const user = await User.findByIdAndUpdate(req.userId, { $set }, { returnDocument: "after", runValidators: true });

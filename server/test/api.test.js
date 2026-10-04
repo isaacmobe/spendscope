@@ -9,7 +9,7 @@ import { buildApp } from "../app.js";
  * Run with: npm test
  */
 process.env.JWT_SECRET = "test-secret-test-secret-test-secret-123";
-process.env.CLIENT_ORIGIN = "http://localhost:5173";
+process.env.CLIENT_ORIGIN = "http://localhost:5290";
 
 let mongod, server, base;
 let dbReady = false;
@@ -132,5 +132,10 @@ dbTest("bills and settings", async () => {
   assert.equal(s.status, 200);
   assert.equal(s.body.data.settings.currency, "USD");
   assert.equal(s.body.data.settings.allocation.savings, 30);
+  const grow = await api("PATCH", "/api/auth/settings", { savingsApr: 12.5, emergencyMonths: 6 });
+  assert.equal(grow.body.data.settings.savingsApr, 12.5);
+  assert.equal(grow.body.data.settings.emergencyMonths, 6);
+  assert.equal((await api("PATCH", "/api/auth/settings", { savingsApr: 99 })).status, 400);
+  assert.equal((await api("PATCH", "/api/auth/settings", { emergencyMonths: 2.5 })).status, 400);
 });
 

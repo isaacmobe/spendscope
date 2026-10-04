@@ -172,13 +172,13 @@ npm run dev
 
 Open:
 
-* `http://localhost:5173`
+* `http://localhost:5290`
 
 ---
 
 ## Dev Proxy Notes (important)
 
-In development, Vite runs the frontend on `5173` and the backend on `5000`.
+In development, Vite runs the frontend on `5290` (change it with `CLIENT_PORT` in `client/.env`) and the backend on `5000`.
 
 We use a Vite proxy so frontend code can call:
 
@@ -245,7 +245,7 @@ Then set budget to 12000 and watch the warning trigger.
 1. `cd server && npm ci`, then copy `server/.env.example` to `server/.env` and fill it in
    (`MONGO_URI`, `JWT_SECRET` of 32+ random characters, `CLIENT_ORIGIN`). `.env` is gitignored: never commit it.
 2. `npm run dev` in `server/` (API on port 5000).
-3. `cd client && npm ci && npm run dev` (app on port 5173; `/api` is proxied to the server).
+3. `cd client && npm ci && npm run dev` (app on port 5290; `/api` is proxied to the server).
 4. API tests: `cd server && npm test`. Database tests need a MongoDB: set `MONGO_TEST_URI` to a throwaway
    database, or leave it unset and the in-memory server downloads a `mongod` (needs internet access).
 
@@ -258,3 +258,14 @@ Then set budget to 12000 and watch the warning trigger.
 - Amounts can be entered and shown in KES or USD. The exchange rate is set by you in Settings (the default is only a placeholder).
 - A calm Three.js background reacts when you add earnings, spend or save. It respects "reduce motion", and is lighter on phones.
 - Client logic tests: `cd client && npm test`.
+
+### How the money logic works
+
+All of it lives in `client/src/lib/finance.js` (pure functions, covered by `npm test` in `client/`).
+
+1. **Earnings** are this calendar month's income entries, converted to the display currency with your exchange rate.
+2. **Pay yourself first.** Earnings are split into needs / wants / savings pools (default 50/30/20, from Warren and Tyagi, *All Your Worth*). The savings pool is set aside before spending: "spendable after saving" = earnings - savings pool.
+3. **Areas.** Each pool is shared between its areas: Housing 40%, Food 25%, Transport 15%, Bills 20% of needs; Lifestyle is all of wants; the Motorbike Fund is all of savings.
+4. **Goal projection.** Months to reach the goal solve `saved*(1+r)^n + P*((1+r)^n - 1)/r = price`, where P is the monthly savings pool and r = yearly growth / 12 (0 by default, so it is plain division). A deadline gives the required monthly amount, the gap to your plan, and the savings percentage you would need.
+5. **Safety net** = months (default 3) x the planned needs pool. Common guidance is 3 to 6 months of essentials.
+6. **Advice** is rule-based: overspend, month-end pace for food/transport/lifestyle, bills due within 7 days, saving half of any earnings increase over last month, and moving unspent money to savings in the last 7 days of the month.

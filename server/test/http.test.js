@@ -7,7 +7,7 @@ import { buildApp } from "../app.js";
  * must reject or enforce BEFORE a query runs (auth gate, validation, limits, headers).
  */
 process.env.JWT_SECRET = "test-secret-test-secret-test-secret-123";
-process.env.CLIENT_ORIGIN = "http://localhost:5173";
+process.env.CLIENT_ORIGIN = "http://localhost:5290";
 
 let server, base;
 before(() => {
@@ -65,10 +65,10 @@ test("malformed, oversized and unknown requests get safe JSON errors", async () 
 test("CORS allow-list and security headers", async () => {
   const evil = await send("GET", "/api/auth/me", undefined, { origin: "https://evil.example" });
   // The API only ever advertises the configured origin, so a browser on any other origin is blocked.
-  assert.equal(evil.headers.get("access-control-allow-origin"), "http://localhost:5173");
+  assert.equal(evil.headers.get("access-control-allow-origin"), "http://localhost:5290");
   assert.notEqual(evil.headers.get("access-control-allow-origin"), "https://evil.example");
-  const good = await send("GET", "/api/auth/me", undefined, { origin: "http://localhost:5173" });
-  assert.equal(good.headers.get("access-control-allow-origin"), "http://localhost:5173");
+  const good = await send("GET", "/api/auth/me", undefined, { origin: "http://localhost:5290" });
+  assert.equal(good.headers.get("access-control-allow-origin"), "http://localhost:5290");
   assert.equal(good.headers.get("access-control-allow-credentials"), "true");
   assert.equal(good.headers.get("x-content-type-options"), "nosniff");
   assert.equal(good.headers.get("x-powered-by"), null);

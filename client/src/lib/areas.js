@@ -5,13 +5,14 @@
  * - id:     stored as the transaction category (keeps data simple and queryable)
  * - group:  which share of earnings pays for it (needs / wants / savings)
  * - weight: the area's share of its group's budget (weights inside a group add up to 1)
+ * - variable: day-to-day spending we can project to month end (rent and bills are lumpy, so no)
  */
 export const AREAS = [
   { id: "housing", label: "Housing", group: "needs", weight: 0.4, hint: "Rent, utilities, repairs" },
-  { id: "food", label: "Food", group: "needs", weight: 0.25, hint: "Groceries and eating out" },
-  { id: "transport", label: "Transport", group: "needs", weight: 0.15, hint: "Fares, fuel, boda and matatu" },
+  { id: "food", label: "Food", group: "needs", weight: 0.25, variable: true, hint: "Groceries and eating out" },
+  { id: "transport", label: "Transport", group: "needs", weight: 0.15, variable: true, hint: "Fares, fuel, boda and matatu" },
   { id: "bills", label: "Bills", group: "needs", weight: 0.2, hint: "Recurring monthly bills" },
-  { id: "lifestyle", label: "Lifestyle", group: "wants", weight: 1, hint: "Fun, shopping, subscriptions" },
+  { id: "lifestyle", label: "Lifestyle", group: "wants", weight: 1, variable: true, hint: "Fun, shopping, subscriptions" },
   { id: "savings", label: "Motorbike Fund", group: "savings", weight: 1, hint: "Money set aside for the bike" }
 ];
 
