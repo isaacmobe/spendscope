@@ -13,8 +13,8 @@ import { onPulse } from "./events";
  */
 // Colours per theme: indigo lines on cream, lighter indigo lines on soft black.
 const THEMES = {
-  light: { line: "#5E62C4", dust: "#2A2A31", lineOpacity: 0.28, plateOpacity: 0.025, dustOpacity: 0.35 },
-  dark: { line: "#9296EC", dust: "#ECE8DD", lineOpacity: 0.4, plateOpacity: 0.04, dustOpacity: 0.3 }
+  light: { line: "#5E62C4", dust: "#2A2A31", fog: "#F1EEE6", lineOpacity: 0.28, plateOpacity: 0.025, dustOpacity: 0.4, tunnel: 0.4, additive: false },
+  dark: { line: "#9296EC", dust: "#C9CCFF", fog: "#16161A", lineOpacity: 0.45, plateOpacity: 0.05, dustOpacity: 0.7, tunnel: 0.65, additive: true }
 };
 const PULSE_COLORS = { income: "#5E62C4", save: "#2E9C8F", spend: "#E2793F", milestone: "#D4A83A" };
 
@@ -98,34 +98,103 @@ function dotTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-// Fine dust particles that sway slowly. The sway is a bounded oscillation (never an endless spin),
-// the dots have a fixed pixel size (so none can swell into a large square near the camera), and all
-// of them sit behind the hexagons.
+// Fine particles that stream slowly toward the viewer and wrap around at the back, which gives
+// the scene its sense of travelling forward. Dots have a fixed pixel size (so none can swell into
+// a large square near the camera) and are all kept behind the interface layer.
 function Dust({ count, animate, palette }) {
-  const points = useRef(null);
+  const attr = useRef(null);
   const sprite = useMemo(() => dotTexture(), []);
   const positions = useMemo(() => {
     const rnd = seeded(21);
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      arr[i * 3] = (rnd() - 0.5) * 26;
-      arr[i * 3 + 1] = (rnd() - 0.5) * 15;
-      arr[i * 3 + 2] = -2 - rnd() * 10;
+      arr[i * 3] = (rnd() - 0.5) * 30;
+      arr[i * 3 + 1] = (rnd() - 0.5) * 18;
+      arr[i * 3 + 2] = -3 - rnd() * 42;
     }
     return arr;
   }, [count]);
 
-  useFrame(({ clock }) => {
-    if (animate && points.current) points.current.rotation.y = Math.sin(clock.elapsedTime * 0.05) * 0.12;
+  useFrame((_, delta) => {
+    if (!animate || !attr.current) return;
+    const a = attr.current.array;
+    for (let i = 0; i < count; i++) {
+      a[i * 3 + 2] += delta * (0.8 + (i % 5) * 0.25);
+      if (a[i * 3 + 2] > 2) a[i * 3 + 2] -= 44; // past the viewer: send it back to the far end
+    }
+    attr.current.needsUpdate = true;
   });
 
   return (
-    <points ref={points}>
+    <points frustumCulled={false}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute ref={attr} attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color={palette.dust} map={sprite} alphaTest={0.02} size={3} transparent opacity={palette.dustOpacity} sizeAttenuation={false} depthWrite={false} />
+      <pointsMaterial color={palette.dust} map={sprite} alphaTest={0.02} size={3.2} transparent opacity={palette.dustOpacity} sizeAttenuation={false} depthWrite={false} blending={palette.additive ? THREE.AdditiveBlending : THREE.NormalBlending} />
     </points>
+  );
+}
+
+// A tunnel of hexagon outlines receding into the distance, rushing slowly toward the viewer and
+// twisting a little as they go, with six long edges running down its corners. Distant rings fade
+// into the fog and rings near the camera fade out, so nothing pops.
+function Tunnel({ animate, palette, count }) {
+  const R = 11;
+  const SPACING = 4.6;
+  const LENGTH = count * SPACING;
+  const rings = useRef([]);
+  const ringGeometry = useMemo(() => {
+    const pts = Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i + Math.PI / 6;
+      return new THREE.Vector3(Math.cos(a) * R, Math.sin(a) * R, 0);
+    });
+    return new THREE.BufferGeometry().setFromPoints(pts);
+  }, []);
+  const edgeGeometry = useMemo(() => {
+    const pts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i + Math.PI / 6;
+      pts.push(new THREE.Vector3(Math.cos(a) * R, Math.sin(a) * R, -LENGTH), new THREE.Vector3(Math.cos(a) * R, Math.sin(a) * R, 4));
+    }
+    return new THREE.BufferGeometry().setFromPoints(pts);
+  }, [LENGTH]);
+  const z = useRef(Array.from({ length: count }, (_, i) => -i * SPACING));
+
+  useEffect(
+    () => () => {
+      ringGeometry.dispose();
+      edgeGeometry.dispose();
+    },
+    [ringGeometry, edgeGeometry]
+  );
+
+  useFrame((_, delta) => {
+    const step = animate ? delta * 1.3 : 0;
+    rings.current.forEach((ring, i) => {
+      if (!ring) return;
+      z.current[i] += step;
+      if (z.current[i] > 3) z.current[i] -= LENGTH;
+      const depth = z.current[i];
+      ring.position.z = depth;
+      ring.rotation.z = depth * 0.018;
+      // Fade in from the far end and out as the ring reaches the viewer.
+      const far = Math.min(1, (depth + LENGTH) / 14);
+      const near = Math.min(1, Math.max(0, (2.5 - depth) / 6));
+      ring.material.opacity = palette.tunnel * far * near * 0.55;
+    });
+  });
+
+  return (
+    <group>
+      {Array.from({ length: count }, (_, i) => (
+        <lineLoop key={i} ref={(el) => (rings.current[i] = el)} geometry={ringGeometry} position={[0, 0, -i * SPACING]}>
+          <lineBasicMaterial color={palette.line} transparent opacity={0} blending={palette.additive ? THREE.AdditiveBlending : THREE.NormalBlending} depthWrite={false} />
+        </lineLoop>
+      ))}
+      <lineSegments geometry={edgeGeometry}>
+        <lineBasicMaterial color={palette.line} transparent opacity={palette.tunnel * 0.14} blending={palette.additive ? THREE.AdditiveBlending : THREE.NormalBlending} depthWrite={false} />
+      </lineSegments>
+    </group>
   );
 }
 
@@ -180,8 +249,8 @@ function Parallax({ children, animate }) {
   const group = useRef(null);
   useFrame(({ pointer }) => {
     if (!animate || !group.current) return;
-    group.current.rotation.y += (pointer.x * 0.12 - group.current.rotation.y) * 0.04;
-    group.current.rotation.x += (-pointer.y * 0.08 - group.current.rotation.x) * 0.04;
+    group.current.rotation.y += (pointer.x * 0.2 - group.current.rotation.y) * 0.04;
+    group.current.rotation.x += (-pointer.y * 0.13 - group.current.rotation.x) * 0.04;
   });
   return <group ref={group}>{children}</group>;
 }
@@ -210,9 +279,11 @@ export default function AmbientScene({ lowPower, dark }) {
       style={{ background: "transparent" }}
     >
       <StaticRender active={!animate} version={dark} />
+      <fog attach="fog" args={[palette.fog, 14, 52]} />
       <Parallax animate={animate}>
+        <Tunnel animate={animate} palette={palette} count={lowPower ? 9 : 14} />
         <Hexagons count={lowPower ? 7 : 16} edges={edges} animate={animate} palette={palette} />
-        <Dust count={lowPower ? 120 : 320} animate={animate} palette={palette} />
+        <Dust count={lowPower ? 140 : 420} animate={animate} palette={palette} />
         <Ripples edges={edges} enabled={animate} />
       </Parallax>
     </Canvas>

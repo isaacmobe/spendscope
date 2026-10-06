@@ -1,5 +1,6 @@
 import { rgb } from "../lib/tokens";
-import { CENTER, RING1, RING2, STAGE, at } from "./stage";
+import { useReducedMotion } from "../hooks/useReducedMotion";
+import { CENTER, POS, RING1, RING2, STAGE, at } from "./stage";
 
 /**
  * Circuit
@@ -8,7 +9,9 @@ import { CENTER, RING1, RING2, STAGE, at } from "./stage";
  * short link to the cells above and below the core, and faint hairlines from each outer cell to the
  * area it relates to. Mirror-symmetric about the vertical centre line.
  */
-export default function Circuit({ locked }) {
+export default function Circuit({ locked, leadId, pinned }) {
+  const reduced = useReducedMotion();
+  const lead = leadId ? POS[leadId] : null;
   const ring1 = Object.fromEntries(RING1.map((n) => [n.id, at(n.dx, n.dy)]));
   const dash = locked ? rgb("ink", 0.2) : rgb("accent", 0.55);
 
@@ -35,6 +38,20 @@ export default function Circuit({ locked }) {
         const b = ring1[c.link];
         return <line key={c.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} style={{ stroke: rgb("ink", 0.14) }} strokeWidth="1" strokeDasharray="2 5" />;
       })}
+
+      {/* Lead line: while a hexagon is hovered or pinned, a glowing line runs from it to the core, behind both. */}
+      {lead && (
+        <g key={leadId}>
+          <line x1={CENTER.x} y1={CENTER.y} x2={lead.x} y2={lead.y} style={{ stroke: rgb("accent", 0.28) }} strokeWidth={pinned ? 26 : 20} strokeLinecap="round" className="anim-preview" />
+          <line x1={CENTER.x} y1={CENTER.y} x2={lead.x} y2={lead.y} style={{ stroke: rgb("accent"), filter: `drop-shadow(0 0 6px ${rgb("accent")})` }} strokeWidth={pinned ? 3.5 : 2.5} strokeDasharray="10 7" strokeLinecap="round" className={reduced ? "" : "anim-flow"} />
+          <circle cx={lead.x} cy={lead.y} r="6" style={{ fill: rgb("accent") }} />
+          {!reduced && (
+            <circle r="5" style={{ fill: rgb("sel-top"), filter: `drop-shadow(0 0 6px ${rgb("accent")})` }}>
+              <animateMotion dur="1.2s" repeatCount="indefinite" path={`M${lead.x} ${lead.y} L${CENTER.x} ${CENTER.y}`} />
+            </circle>
+          )}
+        </g>
+      )}
     </svg>
   );
 }

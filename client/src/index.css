@@ -47,8 +47,8 @@
   --c-face-top: 55 55 64;
   --c-face-bot: 36 36 43;
   --c-ink: 236 232 221;
-  --c-ink-soft: 163 160 169;
-  --c-ink-faint: 112 110 118;
+  --c-ink-soft: 192 189 199;
+  --c-ink-faint: 148 146 156;
   --c-accent: 146 150 236;
   --c-accent-soft: 118 122 206;
   --c-accent-wash: 44 46 80;
@@ -121,28 +121,6 @@ input[type="number"] {
 .fade-edges {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 26px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 26px), transparent 100%);
-}
-
-/* The long striped bar behind the top-bar controls. On phones it dissolves (display: contents) so the
-   controls wrap into two tidy rows; from md up it is the striped hexagon-ended bar of the reference. */
-.stripe-bar {
-  display: contents;
-}
-@media (min-width: 768px) {
-  .stripe-bar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    flex: 1;
-    height: 2.5rem;
-    margin-left: -1.25rem;
-    padding: 0 1.25rem 0 2.5rem;
-    clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 20px 100%, 0 50%);
-    background:
-      repeating-linear-gradient(125deg, rgb(var(--c-ink) / 0.06) 0 5px, transparent 5px 11px),
-      linear-gradient(180deg, rgb(var(--c-face-top)), rgb(var(--c-face-bot)));
-  }
 }
 
 /* Leave room above a tutorial target when it is scrolled into view (under the sticky popover area). */
@@ -293,20 +271,6 @@ input[type="number"] {
     --face-bot: rgb(var(--c-face-bot) / 0.65);
   }
 
-  .hx-input {
-    width: 100%;
-    background: transparent;
-    border: 0;
-    outline: none;
-    padding: 0 1.4rem;
-    height: 100%;
-    color: rgb(var(--c-ink));
-    font-variant-numeric: tabular-nums;
-    caret-color: rgb(var(--c-accent));
-  }
-  .hx-input::placeholder {
-    color: rgb(var(--c-ink-faint));
-  }
   .hx-label {
     display: block;
     margin: 0 0 0.3rem 1.1rem;
@@ -570,4 +534,185 @@ dialog.popup[data-closing="true"] .popup-card {
 .theme-switching *::before,
 .theme-switching *::after {
   transition: none !important;
+}
+
+/* ============================================================================
+   Terminal-style input: no box, a ">" prompt and a large block cursor (see HexField).
+   ============================================================================ */
+.term {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 0.6rem 0 0.9rem;
+  background: linear-gradient(90deg, rgb(var(--c-ink) / 0.07), transparent 85%);
+  transition: background 200ms;
+}
+.term:focus-within {
+  background: linear-gradient(90deg, rgb(var(--c-accent) / 0.2), rgb(var(--c-accent) / 0.02) 90%);
+}
+.term--sm {
+  height: 2rem;
+  --term-size: 15px;
+}
+.term--md {
+  height: 2.6rem;
+  --term-size: 17px;
+}
+.term__prompt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--term-size);
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(var(--c-accent));
+  text-shadow: 0 0 10px rgb(var(--c-accent) / 0.7);
+}
+.term__box {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.term__input,
+.term__mirror {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--term-size);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.term__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: rgb(var(--c-ink));
+  caret-color: rgb(var(--c-accent));
+  caret-shape: block; /* browsers that support it draw the real caret as a block too */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.term__input::-webkit-outer-spin-button,
+.term__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.term__input::placeholder {
+  color: rgb(var(--c-ink-soft));
+  opacity: 0.8;
+}
+/* Leave room for the block cursor in front of the placeholder text. */
+.term__input:placeholder-shown {
+  text-indent: 1.15em;
+}
+.term__mirror {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+.term__ghost {
+  visibility: hidden;
+}
+.term__caret {
+  flex: none;
+  width: 0.62em;
+  height: 1.3em;
+  background: rgb(var(--c-accent));
+  box-shadow: 0 0 12px rgb(var(--c-accent) / 0.75);
+  opacity: 0.55;
+  animation: caret-blink 1.4s steps(1) infinite;
+}
+.term:focus-within .term__caret {
+  opacity: 1;
+  animation-duration: 0.95s;
+}
+/* A filled field that is not being edited shows no cursor. */
+.term.is-filled:not(:focus-within) .term__caret {
+  display: none;
+}
+@keyframes caret-blink {
+  0%,
+  55% {
+    visibility: visible;
+  }
+  56%,
+  100% {
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term__caret {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   Text inside hexagon cells. Colours are set explicitly here (not through utility classes) so they
+   cannot be lost on a theme change. In dark mode text gets a soft dark halo, so it stays readable
+   over the lighter liquid fill. A selected or hovered cell is solid indigo, so its text turns white.
+   ============================================================================ */
+.hc-text {
+  color: rgb(var(--c-ink));
+}
+.hc-soft {
+  color: rgb(var(--c-ink-soft));
+}
+.dark .hc-text {
+  color: #f6f2e8;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 10px rgb(0 0 0 / 0.55);
+}
+.dark .hc-soft {
+  color: #d2cfda;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 8px rgb(0 0 0 / 0.5);
+}
+.group:hover .hc-text,
+.group:focus-visible .hc-text,
+.group[data-selected="true"] .hc-text {
+  color: #ffffff;
+}
+.group:hover .hc-soft,
+.group:focus-visible .hc-soft,
+.group[data-selected="true"] .hc-soft {
+  color: rgb(255 255 255 / 0.88);
+}
+/* Dimmed while another hexagon is pinned in the centre. */
+.cell-dim {
+  opacity: 0.46;
+  filter: saturate(0.6);
+}
+.cell-wrap {
+  transition: opacity 350ms, filter 350ms;
+}
+
+/* ============================================================================
+   Header: a game-style HUD. A dark brand block with a notch, a glass control cluster with cut
+   corners, and a thin glowing rail under both.
+   ============================================================================ */
+.hud-brand {
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  background: linear-gradient(180deg, rgb(var(--c-bar-top)), rgb(var(--c-bar-bot)));
+  color: rgb(var(--c-paper));
+}
+.hud-edge {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  background: linear-gradient(135deg, rgb(var(--c-accent) / 0.8), rgb(var(--c-ink) / 0.25) 45%, rgb(var(--c-accent) / 0.5));
+  padding: 1px;
+}
+.hud-face {
+  clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
+  background: linear-gradient(180deg, rgb(var(--c-surface) / 0.82), rgb(var(--c-surface-2) / 0.7));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.hud-rail {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--c-accent) / 0.8) 20%, rgb(var(--c-ink) / 0.25) 50%, rgb(var(--c-accent) / 0.8) 80%, transparent);
+  box-shadow: 0 0 12px rgb(var(--c-accent) / 0.55);
 }

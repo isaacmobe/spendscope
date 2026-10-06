@@ -8,7 +8,7 @@ import { HexButton, HexField } from "./hx";
  * Used for earnings in the core, spending in each area, and savings contributions.
  * It validates on the client for quick feedback; the server validates again.
  */
-export default function AmountForm({ submitLabel, withNote = false, onSubmit, compact = false, currency }) {
+export default function AmountForm({ submitLabel, withNote = false, onSubmit, compact = false, currency, autoFocus = false }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,8 +43,9 @@ export default function AmountForm({ submitLabel, withNote = false, onSubmit, co
           min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder={`Amount (${currency})`}
+          placeholder={compact ? "Amount" : `Amount (${currency})`}
           aria-label={`Amount in ${currency}`}
+          autoFocus={autoFocus}
         />
         <HexButton type="submit" size={compact ? "sm" : "md"} variant="solid" disabled={busy}>
           {busy ? "..." : submitLabel}

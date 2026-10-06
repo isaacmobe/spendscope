@@ -31,8 +31,7 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
   const tilt = useRef(null);
   const h = hexHeight(size);
   const big = size >= 150;
-  const hoverText = selected ? "text-white" : "group-hover:text-white group-focus-visible:text-white";
-  const soft = selected ? "text-white/85" : "text-ink-soft group-hover:text-white/85 group-focus-visible:text-white/85";
+  const soft = "hc-soft";
 
   const onMove = (e) => {
     if (locked || !tilt.current) return;
@@ -53,8 +52,8 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
   const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms` } : { width: size, height: h, animationDelay: `${delay}ms` };
 
   return (
-    <div className={`anim-rise ${absolute ? "absolute" : "relative shrink-0"} ${dim ? "opacity-80" : ""}`} style={wrapper} data-tour={tourId}>
-      <div className="anim-float" style={{ animationDelay: `${-pair * 1.3}s`, animationDuration: `${5.2 + pair * 0.6}s` }}>
+    <div className={`anim-rise ${absolute ? "absolute" : "relative shrink-0"}`} style={wrapper} data-tour={tourId}>
+      <div className={`anim-float cell-wrap ${dim ? "cell-dim" : ""}`} style={{ animationDelay: `${-pair * 1.3}s`, animationDuration: `${5.2 + pair * 0.6}s` }}>
         <button
           type="button"
           onClick={onOpen}
@@ -65,12 +64,13 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
           onBlur={onLeave}
           disabled={locked}
           aria-label={label}
+          data-selected={Boolean(selected)}
           className={`group relative block outline-none ${locked ? "cursor-not-allowed" : ""}`}
           style={{ width: size, height: h }}
         >
           <div ref={tilt} className="transition-transform duration-300 ease-out will-change-transform">
             <HexFrame size={size} radius={big ? 12 : 10} tone={tone} level={level} locked={locked} selected={selected} portSide={port} pingKey={`${value}-${tone}`}>
-              <span className={`pointer-events-none absolute inset-x-[10%] bottom-[16%] top-[19%] flex flex-col items-center justify-center text-center text-ink ${hoverText}`}>
+              <span className={`pointer-events-none absolute inset-x-[10%] bottom-[16%] top-[19%] flex flex-col items-center justify-center text-center hc-text`}>
                 {locked ? (
                   <>
                     <IconLock className="h-6 w-6 opacity-70" />

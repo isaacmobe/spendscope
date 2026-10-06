@@ -159,7 +159,8 @@ export default function Dashboard() {
         tone,
         level: Math.min(1, isSavings ? (summary.goal ? summary.goal.progress : 0) : area.ratio),
         meter: true,
-        action: "Add or view"
+        command: area.id !== "bills", // bills are set up once in the popup; the others take an amount here
+        action: area.id === "bills" ? "Manage bills" : "Entries"
       };
     }
     const c = cellById[previewId];
@@ -197,6 +198,7 @@ export default function Dashboard() {
           tone,
           level: isSavings ? (summary.goal ? summary.goal.progress : 0) : ratio,
           locked,
+          dim: Boolean(pinId) && pinId !== area.id && hoverId !== area.id,
           selected: previewId === area.id || target === area.id,
           onOpen: () => selectCell(area.id),
           onPreview: desktop ? (on) => hoverCell(area.id, on) : undefined,
@@ -215,6 +217,7 @@ export default function Dashboard() {
       caption: c.caption,
       tone: c.tone,
       level: c.level,
+      dim: Boolean(pinId) && pinId !== id && hoverId !== id,
       icon: c.icon ? ICONS[c.icon] : undefined,
       spark: c.spark,
       sparkMax: c.sparkMax,
@@ -233,7 +236,7 @@ export default function Dashboard() {
         <div style={{ perspective: "1700px" }} className="h-full w-full">
           <div ref={tiltRef} className="relative h-full w-full" style={{ transform: "rotateX(calc(var(--py, 0) * -1.6deg)) rotateY(calc(var(--px, 0) * 2deg))", transition: "transform 0.1s linear" }}>
             <div className="absolute inset-0" style={layerShift(-4, -3)}>
-              <Circuit locked={locked} />
+              <Circuit locked={locked} leadId={previewId} pinned={Boolean(pinId) && pinId === previewId} />
             </div>
             <div className="absolute inset-0" style={layerShift(5, 4)}>
               {RING2.map((n, i) => (
@@ -253,6 +256,8 @@ export default function Dashboard() {
               pinned={Boolean(pinId) && pinId === previewId}
               onOpenPreview={() => openById(previewId)}
               onBack={() => setPinId(null)}
+              onCommand={(areaId, amount) => addSpending(areaId, amount, summary.areas.find((a) => a.id === areaId).label)}
+              onEngage={() => previewId && setPinId(previewId)}
               onPointerEnter={() => clearTimeout(hoverTimer.current)}
               onPointerLeave={() => setHoverId(null)}
             />
@@ -261,6 +266,9 @@ export default function Dashboard() {
       </div>
     </div>
   );
+
+  // Month selector, with a note when looking back (shown under the header on desktop).
+  const monthNav = <MonthNav />;
 
   // Narrow screens: core first, then the cells as interlocking honeycomb rows.
   const cellSize = phone ? 148 : 164;
@@ -281,14 +289,17 @@ export default function Dashboard() {
 
   return (
     <div className="anim-page relative min-h-screen">
-      <TopBar onSettings={() => setSettingsOpen(true)} onQuickAdd={() => setQuickOpen(true)} onTour={() => setTourManual(true)} />
+      <TopBar onSettings={() => setSettingsOpen(true)} onQuickAdd={() => setQuickOpen(true)} onTour={() => setTourManual(true)} center={desktop ? monthNav : null} />
 
-      {/* Desktop: the month selector sits in the empty top-left corner so the console gets the full height.
-          Narrow screens: it sits above the console, centred. */}
-      <div className={desktop ? "absolute left-6 top-[84px] z-10 w-[340px]" : "mt-4 px-3"}>
-        <MonthNav />
-        {!isCurrent && <p className={`mt-2 text-[12px] text-ink-soft text-center`}>Viewing {monthLabel} as it ended. Entries you add here are dated at the end of that month.</p>}
-      </div>
+      {/* Narrow screens: the month selector sits above the console. Desktop has it in the header. */}
+      {!desktop && (
+        <div className="mt-4 px-3">
+          {monthNav}
+          {!isCurrent && <p className="mt-2 text-center text-[12px] text-ink-soft">Viewing {monthLabel} as it ended. Entries you add here are dated at the end of that month.</p>}
+        </div>
+      )}
+
+      {desktop && !isCurrent && <p className="mt-2 text-center text-[12px] text-ink-soft">Viewing {monthLabel} as it ended. Entries you add here are dated at the end of that month.</p>}
 
       <main className="px-3 pt-2 sm:px-6">{loading ? <p className="py-24 text-center font-mono text-sm text-ink-soft">Loading your data...</p> : desktop ? desktopStage : compactStage}</main>
 

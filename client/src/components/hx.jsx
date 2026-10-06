@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { rgb } from "../lib/tokens";
 import { IconMinus, IconPlus } from "./icons";
 
@@ -28,11 +28,27 @@ export function HexButton({ variant = "wash", size = "md", plain = false, classN
   );
 }
 
-// A labelled text or number field inside a hexagon frame.
-export function HexField({ label, id, className = "", size = "md", ...input }) {
+/**
+ * HexField
+ * --------
+ * A terminal-style input with no box or border. A ">" prompt sits at the left and a large block
+ * cursor blinks where the next character will go, so it is always clear where to type. An empty
+ * field shows a dim, slow-blinking block even when it is not focused.
+ * How the block cursor works: the real <input> keeps its own (thin) caret for accessibility, and
+ * behind it an invisible copy of the text before the caret pushes a block to the right spot. The
+ * caret index is read from the input on every key, click and selection change.
+ */
+export function HexField({ label, id, className = "", size = "md", value, onChange, type = "text", ...input }) {
   const uid = useId();
   const fieldId = id || uid;
-  const s = SIZES[size];
+  const [pos, setPos] = useState(null); // caret index; null means "at the end"
+  const text = String(value ?? "");
+  const index = Math.min(pos ?? text.length, text.length);
+  // Password dots are drawn as bullets of the same width as the browser's own.
+  const before = type === "password" ? "\u2022".repeat(index) : text.slice(0, index);
+  // Number inputs do not expose a caret position (selectionStart is null), so the block sits at the end.
+  const sync = (e) => setPos(typeof e.target.selectionStart === "number" ? e.target.selectionStart : null);
+
   return (
     <div className={className}>
       {label && (
@@ -40,13 +56,31 @@ export function HexField({ label, id, className = "", size = "md", ...input }) {
           {label}
         </label>
       )}
-      <span className="hx block w-full" style={{ "--c": s.c }}>
-        <span className="hx__edge">
-          <span className={`hx__face ${s.h} ${size === "sm" ? "text-[13px]" : "text-sm"}`}>
-            <input id={fieldId} className="hx-input" {...input} />
-          </span>
+      <div className={`term term--${size} ${text ? "is-filled" : ""}`}>
+        <span className="term__prompt" aria-hidden="true">
+          &gt;
         </span>
-      </span>
+        <div className="term__box">
+          <span className="term__mirror" aria-hidden="true">
+            <span className="term__ghost">{before}</span>
+            <span className="term__caret" />
+          </span>
+          <input
+            id={fieldId}
+            className="term__input"
+            type={type}
+            value={value}
+            onChange={(e) => {
+              sync(e);
+              onChange?.(e);
+            }}
+            onSelect={sync}
+            onKeyUp={sync}
+            onClick={sync}
+            {...input}
+          />
+        </div>
+      </div>
     </div>
   );
 }

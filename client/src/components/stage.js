@@ -43,3 +43,6 @@ export const at = (dx, dy) => ({ x: CENTER.x + dx, y: CENTER.y + dy });
 
 // Float timing groups: cells at the same height (mirror twins) share one.
 export const pairOf = (dy) => Math.round(Math.abs(dy) / 124) % 4;
+
+// Centre of every outer hexagon by id (areas and information cells share one id space).
+export const POS = Object.fromEntries([...RING1, ...RING2].map((n) => [n.id, at(n.dx, n.dy)]));
