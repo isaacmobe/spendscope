@@ -27,7 +27,7 @@ function Spark({ values, max, color }) {
  * of the console always move together.
  *   Every colour comes from theme variables, and text sits on a surface that sets its own colour.
  */
-export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, spark, sparkMax, onOpen, label, center, delay = 0, pair = 0, tourId, absolute = true, dim = false }) {
+export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, spark, sparkMax, onOpen, onPreview, label, center, delay = 0, pair = 0, tourId, absolute = true, dim = false }) {
   const tilt = useRef(null);
   const h = hexHeight(size);
   const big = size >= 150;
@@ -43,6 +43,11 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
   };
   const onLeave = () => {
     if (tilt.current) tilt.current.style.transform = "";
+    onPreview?.(false);
+  };
+  // Mouse hover and keyboard focus preview the cell in the centre; a touch is handled by the click.
+  const onEnter = (e) => {
+    if (e.pointerType !== "touch" && !locked) onPreview?.(true);
   };
 
   const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms` } : { width: size, height: h, animationDelay: `${delay}ms` };
@@ -53,7 +58,9 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
         <button
           type="button"
           onClick={onOpen}
+          onPointerEnter={onEnter}
           onPointerMove={onMove}
+          onFocus={() => !locked && onPreview?.(true)}
           onPointerLeave={onLeave}
           onBlur={onLeave}
           disabled={locked}
@@ -63,7 +70,7 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
         >
           <div ref={tilt} className="transition-transform duration-300 ease-out will-change-transform">
             <HexFrame size={size} radius={big ? 12 : 10} tone={tone} level={level} locked={locked} selected={selected} portSide={port} pingKey={`${value}-${tone}`}>
-              <span className={`pointer-events-none absolute inset-x-[10%] bottom-[16%] top-[19%] flex flex-col items-center justify-center text-center text-ink transition-colors duration-300 ${hoverText}`}>
+              <span className={`pointer-events-none absolute inset-x-[10%] bottom-[16%] top-[19%] flex flex-col items-center justify-center text-center text-ink ${hoverText}`}>
                 {locked ? (
                   <>
                     <IconLock className="h-6 w-6 opacity-70" />

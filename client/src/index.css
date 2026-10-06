@@ -22,6 +22,8 @@
   --c-accent: 94 98 196;
   --c-accent-soft: 142 145 214;
   --c-accent-wash: 228 229 244;
+  --c-sel-top: 104 108 204;
+  --c-sel-bot: 74 78 172;
   --c-accent-dark: 69 73 152;
   --c-ember: 217 134 80;
   --c-rose: 233 162 155;
@@ -50,6 +52,8 @@
   --c-accent: 146 150 236;
   --c-accent-soft: 118 122 206;
   --c-accent-wash: 44 46 80;
+  --c-sel-top: 98 102 198;
+  --c-sel-bot: 66 70 156;
   --c-accent-dark: 178 181 247;
   --c-ember: 234 158 106;
   --c-rose: 226 150 143;
@@ -543,4 +547,27 @@ dialog.popup[data-closing="true"] .popup-card {
     animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* The centre hexagon swaps its content when an outer hexagon is previewed. */
+@keyframes preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.anim-preview {
+  animation: preview-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* While the theme changes, nothing animates its colours, so no text can be caught half-way
+   between the light and dark values. Set by ThemeProvider for a moment around each switch. */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }

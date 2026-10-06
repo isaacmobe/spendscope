@@ -1,6 +1,6 @@
 import AmountForm from "./AmountForm";
 import HexFrame from "./HexFrame";
-import { HexChip } from "./hx";
+import { HexButton, HexChip, HexMeter } from "./hx";
 import { useCountUp } from "../hooks/useCountUp";
 import { PLAN } from "../config/plan";
 import { formatMoney } from "../lib/money";
@@ -18,6 +18,33 @@ function LevelCells({ level, max }) {
   );
 }
 
+// Colour of the big preview number by tone.
+const VALUE_TONE = { ok: "text-accent", warn: "text-ember", over: "text-rose-deep", good: "text-good", muted: "text-ink-soft" };
+
+// The centre while an outer hexagon is previewed: its name, number, a short explanation and the buttons.
+function Preview({ preview, pinned, onOpen, onBack }) {
+  return (
+    <div key={preview.id} className="anim-preview absolute inset-x-[15%] bottom-[19%] top-[19%] flex flex-col items-center justify-center text-center text-ink" aria-live="polite">
+      <HexChip>{preview.kicker}</HexChip>
+      <p className="mt-2 text-[16px] font-semibold leading-tight">{preview.title}</p>
+      <p className={`mt-1 font-mono text-[26px] font-semibold leading-none ${VALUE_TONE[preview.tone] || VALUE_TONE.ok}`}>{preview.value}</p>
+      <p className="mt-1 text-[12px] text-ink-soft">{preview.caption}</p>
+      {preview.meter && <HexMeter ratio={preview.level} tone={preview.tone === "muted" ? "ok" : preview.tone} cells={12} className="mt-2 w-full justify-center" />}
+      <p className="mt-2 text-[12px] leading-snug text-ink-soft">{preview.text}</p>
+      <div className="mt-2.5 flex items-center gap-2">
+        <HexButton size="sm" variant="accent" onClick={onOpen}>
+          {preview.action}
+        </HexButton>
+        {pinned && (
+          <HexButton size="sm" variant="ghost" onClick={onBack}>
+            Back
+          </HexButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
  * CoreHex
  * -------
@@ -25,7 +52,7 @@ function LevelCells({ level, max }) {
  * with the same HexFrame as every other hexagon, so its outline matches theirs exactly. Around the
  * number sit a gauge that fills as you approach the savings target and a slowly turning tick ring.
  */
-export default function CoreHex({ summary, onAdd, onHistory, size = 320, center, absolute = true }) {
+export default function CoreHex({ summary, onAdd, onHistory, size = 320, center, absolute = true, preview = null, pinned = false, onOpenPreview, onBack, onPointerEnter, onPointerLeave }) {
   const shown = useCountUp(summary.income);
   const { currency, level, maxLevel, savingsRate, isCurrent } = summary;
   const hasIncome = summary.income > 0;
@@ -37,7 +64,7 @@ export default function CoreHex({ summary, onAdd, onHistory, size = 320, center,
   const style = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h } : { width: size, height: h };
 
   return (
-    <div className={`anim-rise ${absolute ? "absolute" : "relative mx-auto"}`} style={style}>
+    <div className={`anim-rise ${absolute ? "absolute" : "relative mx-auto"}`} style={style} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
       <HexFrame size={size} radius={16} portSide="both" dots tone="ok">
         {/* Turning tick ring and the savings gauge, in px so they stay crisp at any size */}
         <svg width={size} height={h} viewBox={`0 0 ${size} ${h}`} className="pointer-events-none absolute inset-0" aria-hidden="true">
@@ -59,7 +86,9 @@ export default function CoreHex({ summary, onAdd, onHistory, size = 320, center,
           />
         </svg>
 
-        <div className="absolute inset-x-[15%] bottom-[22%] top-[22%] flex flex-col items-center justify-center text-center text-ink">
+        {preview && <Preview preview={preview} pinned={pinned} onOpen={onOpenPreview} onBack={onBack} />}
+
+        <div className={`absolute inset-x-[15%] bottom-[22%] top-[22%] flex flex-col items-center justify-center text-center text-ink ${preview ? "pointer-events-none invisible" : "anim-preview"}`} aria-hidden={Boolean(preview)}>
           <HexChip>Earnings</HexChip>
           <p className="mt-2 font-mono text-[30px] font-semibold leading-none text-accent" aria-live="polite">
             {formatMoney(shown, currency)}

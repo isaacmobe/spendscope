@@ -27,9 +27,13 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    // Freeze transitions for a moment so colours switch at once (see .theme-switching in index.css).
+    root.classList.add("theme-switching");
     root.classList.toggle("dark", theme === "dark");
+    const unfreeze = setTimeout(() => root.classList.remove("theme-switching"), 80);
     root.style.colorScheme = theme;
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[theme]);
+    return () => clearTimeout(unfreeze);
   }, [theme]);
 
   // Follow system changes only while the user has not chosen explicitly.

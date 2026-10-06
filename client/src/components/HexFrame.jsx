@@ -48,8 +48,8 @@ export default function HexFrame({
             <stop offset="1" className="svg-face-stop-bot" />
           </linearGradient>
           <linearGradient id={`act-${uid}`} x1="0" y1="0" x2="0.4" y2="1">
-            <stop offset="0" style={{ stopColor: rgb("accent-soft") }} />
-            <stop offset="1" style={{ stopColor: rgb("accent") }} />
+            <stop offset="0" style={{ stopColor: rgb("sel-top") }} />
+            <stop offset="1" style={{ stopColor: rgb("sel-bot") }} />
           </linearGradient>
           <linearGradient id={`gloss-${uid}`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#fff" stopOpacity="0.4" />

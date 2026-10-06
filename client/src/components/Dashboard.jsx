@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { APP } from "../config/app";
 import { useAuth } from "../context/auth";
 import { useFinance } from "../context/finance";
@@ -63,6 +63,9 @@ export default function Dashboard() {
   const { loading, summary, addEarning, addSpending, isCurrent, viewDate } = useFinance();
   const [target, setTarget] = useState(null); // an area id, "earnings" or null: which input popup is open
   const [info, setInfo] = useState(null); // a cell id or null: which explanation popup is open
+  const [hoverId, setHoverId] = useState(null); // outer hexagon under the pointer or focus (desktop)
+  const [pinId, setPinId] = useState(null); // outer hexagon kept in the centre after a click
+  const hoverTimer = useRef(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [tourManual, setTourManual] = useState(false);
@@ -88,6 +91,7 @@ export default function Dashboard() {
   // Keyboard: Ctrl/Cmd+K opens quick add anywhere; "?" opens the tutorial when not typing.
   useEffect(() => {
     const onKey = (e) => {
+      if (e.key === "Escape") setPinId(null);
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setQuickOpen((v) => !v);
@@ -98,6 +102,8 @@ export default function Dashboard() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
   const locked = summary.income <= 0 && isCurrent; // areas unlock once earnings exist (past months always open)
   const monthLabel = viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -113,6 +119,63 @@ export default function Dashboard() {
     else if (id === "quick") setQuickOpen(true);
     else setInfo(id);
   };
+
+  // Open the full popup for an outer hexagon (an area, or an information cell).
+  const openById = (id) => (summary.areas.some((a) => a.id === id) ? setTarget(id) : openCell(id));
+
+  // Hover preview: moving between neighbouring hexagons must not flicker, so leaving is delayed a moment.
+  const hoverCell = useCallback((id, active) => {
+    clearTimeout(hoverTimer.current);
+    if (active) setHoverId(id);
+    else hoverTimer.current = setTimeout(() => setHoverId((cur) => (cur === id ? null : cur)), 140);
+  }, []);
+
+  // A click pins the preview in the centre; clicking the same hexagon again opens its popup.
+  // Narrow screens have no room for the preview, so a tap opens the popup straight away.
+  const selectCell = (id) => {
+    if (!desktop || pinId === id) return openById(id);
+    setPinId(id);
+  };
+
+  const previewId = desktop ? hoverId ?? pinId : null;
+
+  // What the centre shows for the previewed hexagon.
+  const preview = useMemo(() => {
+    if (!previewId) return null;
+    const fit = (n) => formatMoneyFit(n, summary.currency, 12);
+    const area = summary.areas.find((a) => a.id === previewId);
+    if (area) {
+      const isSavings = area.id === "savings";
+      const left = area.budget - area.spent;
+      const tone = isSavings ? "good" : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
+      const status = isSavings ? (summary.goal ? `${Math.round(summary.goal.progress * 100)}% of your goal saved.` : "Set a goal to track it.") : left < 0 ? `Over by ${fit(-left)}.` : `${fit(left)} left.`;
+      return {
+        id: area.id,
+        kicker: String(summary.areas.indexOf(area) + 1).padStart(2, "0"),
+        title: area.label,
+        value: fit(area.spent),
+        caption: area.id === "bills" ? "per month" : `of ${fit(area.budget)} share`,
+        text: `${area.hint}. ${status}`,
+        tone,
+        level: Math.min(1, isSavings ? (summary.goal ? summary.goal.progress : 0) : area.ratio),
+        meter: true,
+        action: "Add or view"
+      };
+    }
+    const c = cellById[previewId];
+    return {
+      id: c.id,
+      kicker: c.kicker,
+      title: c.info.title,
+      value: c.value,
+      caption: c.caption,
+      text: c.info.short,
+      tone: c.tone,
+      level: c.level,
+      meter: ["needs", "wants", "pool", "after", "left", "level", "pace", "safe"].includes(c.id),
+      action: c.id === "quick" ? "Open" : c.id === "goal" ? "Edit goal" : "Details"
+    };
+  }, [previewId, summary, cellById]);
 
   // The six spending areas: number, name, amount used and a liquid level for how much of the share is used.
   const areaCells = (size) =>
@@ -134,8 +197,9 @@ export default function Dashboard() {
           tone,
           level: isSavings ? (summary.goal ? summary.goal.progress : 0) : ratio,
           locked,
-          selected: target === area.id,
-          onOpen: () => setTarget(area.id),
+          selected: previewId === area.id || target === area.id,
+          onOpen: () => selectCell(area.id),
+          onPreview: desktop ? (on) => hoverCell(area.id, on) : undefined,
           label: `${area.label}: ${area.hint}`,
           tourId: i === 0 ? "node-first" : undefined
         }
@@ -154,8 +218,9 @@ export default function Dashboard() {
       icon: c.icon ? ICONS[c.icon] : undefined,
       spark: c.spark,
       sparkMax: c.sparkMax,
-      selected: info === id || (id === "goal" && target === "savings"),
-      onOpen: () => openCell(id),
+      selected: previewId === id || info === id || (id === "goal" && target === "savings"),
+      onOpen: () => selectCell(id),
+      onPreview: desktop ? (on) => hoverCell(id, on) : undefined,
       label: c.info.title,
       tourId: `cell-${id}`
     };
@@ -178,7 +243,19 @@ export default function Dashboard() {
                 <HexCell key={key} {...props} absolute center={at(node.dx, node.dy)} port={node.port} pair={pairOf(node.dy)} delay={120 + i * 60} />
               ))}
             </div>
-            <CoreHex summary={summary} onAdd={addEarning} onHistory={() => setTarget("earnings")} size={CORE_W} center={at(0, 0)} />
+            <CoreHex
+              summary={summary}
+              onAdd={addEarning}
+              onHistory={() => setTarget("earnings")}
+              size={CORE_W}
+              center={at(0, 0)}
+              preview={preview}
+              pinned={Boolean(pinId) && pinId === previewId}
+              onOpenPreview={() => openById(previewId)}
+              onBack={() => setPinId(null)}
+              onPointerEnter={() => clearTimeout(hoverTimer.current)}
+              onPointerLeave={() => setHoverId(null)}
+            />
           </div>
         </div>
       </div>
