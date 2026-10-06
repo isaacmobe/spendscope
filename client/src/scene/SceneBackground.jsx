@@ -41,6 +41,8 @@ export default function SceneBackground() {
           <AmbientScene lowPower={smallScreen} dark={dark} />
         </Suspense>
       </SceneBoundary>
+      {/* Soft vignette: the wall fades toward the edges so the console stays the focus. */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 35%, rgb(var(--c-bg) / 0.85) 100%)" }} />
     </div>
   );
 }

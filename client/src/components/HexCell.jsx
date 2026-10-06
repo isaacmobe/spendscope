@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import HexFrame from "./HexFrame";
 import { hexHeight } from "./hexGeometry";
 import { IconLock } from "./icons";
@@ -27,13 +27,51 @@ function Spark({ values, max, color }) {
  * of the console always move together.
  *   Every colour comes from theme variables, and text sits on a surface that sets its own colour.
  */
-export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, spark, sparkMax, onOpen, onPreview, label, center, delay = 0, pair = 0, tourId, absolute = true, dim = false }) {
+export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, spark, sparkMax, onOpen, onPreview, label, center, delay = 0, pair = 0, tourId, absolute = true, dim = false, draggable = false, scale = 1, onDragStart, onDrag }) {
   const tilt = useRef(null);
+  const drag = useRef(null); // { x, y } where the pointer went down, while it is down
+  const moved = useRef(false); // true once the pointer has travelled far enough to count as a drag
+  const [dragging, setDragging] = useState(false);
   const h = hexHeight(size);
   const big = size >= 150;
   const soft = "hc-soft";
 
+  // Dragging: press and move more than a few pixels to carry the hexagon; a plain click still opens it.
+  const onDown = (e) => {
+    if (!draggable || e.button !== 0) return;
+    drag.current = { x: e.clientX, y: e.clientY };
+    moved.current = false;
+    onDragStart?.();
+  };
+  const onDragMove = (e) => {
+    if (!drag.current) return false;
+    const dx = e.clientX - drag.current.x;
+    const dy = e.clientY - drag.current.y;
+    if (!moved.current && Math.hypot(dx, dy) < 6) return false;
+    if (!moved.current) {
+      moved.current = true;
+      setDragging(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      if (tilt.current) tilt.current.style.transform = "";
+    }
+    onDrag?.(dx / scale, dy / scale); // screen pixels to stage units
+    return true;
+  };
+  const onUp = () => {
+    drag.current = null;
+    setDragging(false);
+  };
+  const onClick = (e) => {
+    if (moved.current) {
+      moved.current = false; // the click that ends a drag must not open the cell
+      e.preventDefault();
+      return;
+    }
+    onOpen?.();
+  };
+
   const onMove = (e) => {
+    if (onDragMove(e)) return;
     if (locked || !tilt.current) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width - 0.5;
@@ -49,14 +87,17 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
     if (e.pointerType !== "touch" && !locked) onPreview?.(true);
   };
 
-  const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms` } : { width: size, height: h, animationDelay: `${delay}ms` };
+  const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms`, zIndex: dragging ? 30 : undefined } : { width: size, height: h, animationDelay: `${delay}ms` };
 
   return (
     <div className={`anim-rise ${absolute ? "absolute" : "relative shrink-0"}`} style={wrapper} data-tour={tourId}>
       <div className={`anim-float cell-wrap ${dim ? "cell-dim" : ""}`} style={{ animationDelay: `${-pair * 1.3}s`, animationDuration: `${5.2 + pair * 0.6}s` }}>
         <button
           type="button"
-          onClick={onOpen}
+          onClick={onClick}
+          onPointerDown={onDown}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
           onPointerEnter={onEnter}
           onPointerMove={onMove}
           onFocus={() => !locked && onPreview?.(true)}
@@ -65,8 +106,8 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
           disabled={locked}
           aria-label={label}
           data-selected={Boolean(selected)}
-          className={`group relative block outline-none ${locked ? "cursor-not-allowed" : ""}`}
-          style={{ width: size, height: h }}
+          className={`group relative block outline-none ${locked ? "cursor-not-allowed" : draggable ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
+          style={{ width: size, height: h, touchAction: draggable ? "none" : undefined }}
         >
           <div ref={tilt} className="transition-transform duration-300 ease-out will-change-transform">
             <HexFrame size={size} radius={big ? 12 : 10} tone={tone} level={level} locked={locked} selected={selected} portSide={port} pingKey={`${value}-${tone}`}>

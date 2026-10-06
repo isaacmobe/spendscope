@@ -3,7 +3,8 @@ import { APP } from "../config/app";
 import { useAuth } from "../context/auth";
 import { useFinance } from "../context/finance";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { layerShift, useParallax } from "../hooks/useParallax";
+import { useCellLayout } from "../hooks/useCellLayout";
+import { useParallax } from "../hooks/useParallax";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { useStageFit } from "../hooks/useStageFit";
 import { buildCells } from "../lib/cells";
@@ -75,6 +76,8 @@ export default function Dashboard() {
   const reduced = useReducedMotion();
   const [stageRef, scale] = useStageFit(STAGE.width, STAGE.height);
   const tiltRef = useParallax(desktop && !reduced);
+  const layout = useCellLayout();
+  const dragBase = useRef({ dx: 0, dy: 0 }); // offset of the hexagon being dragged, when the drag began
 
   // First visit: show the tutorial once, after data has loaded and any recovery code has been dealt with.
   const tourOpen = tourManual || (!loading && !tourDone && !recoveryCode);
@@ -110,6 +113,33 @@ export default function Dashboard() {
   const cells = useMemo(() => buildCells(summary), [summary]);
   const cellById = useMemo(() => Object.fromEntries(cells.map((c) => [c.id, c])), [cells]);
 
+  // Where every outer hexagon is: its default spot plus however far the user dragged it (kept on the stage).
+  const nodes = useMemo(() => {
+    const out = {};
+    const place = (n, w) => {
+      const off = layout.offsets[n.id] || { dx: 0, dy: 0 };
+      const half = w / 2;
+      const halfH = hexHeight(w) / 2;
+      const p = at(n.dx + off.dx, n.dy + off.dy);
+      out[n.id] = { x: Math.min(STAGE.width - half, Math.max(half, p.x)), y: Math.min(STAGE.height - halfH, Math.max(halfH, p.y)), w };
+    };
+    RING1.forEach((n) => place(n, RING1_W));
+    RING2.forEach((n) => place(n, RING2_W));
+    return out;
+  }, [layout.offsets]);
+
+  // Drag handlers for one hexagon: remember where it started, then follow the pointer (in stage units).
+  const dragProps = (id) => ({
+    draggable: desktop,
+    scale,
+    onDragStart: () => {
+      const cur = nodes[id];
+      const def = [...RING1, ...RING2].find((n) => n.id === id);
+      dragBase.current = { dx: cur.x - at(def.dx, def.dy).x, dy: cur.y - at(def.dx, def.dy).y };
+    },
+    onDrag: (dx, dy) => layout.setOffset(id, { dx: Math.round(dragBase.current.dx + dx), dy: Math.round(dragBase.current.dy + dy) })
+  });
+
   // Move this month's unspent money into the savings goal (one entry, easy to undo).
   const sweep = () => addSpending("savings", Math.floor(summary.leftover * 100) / 100, "Unspent, moved to savings").catch(() => {});
 
@@ -123,11 +153,17 @@ export default function Dashboard() {
   // Open the full popup for an outer hexagon (an area, or an information cell).
   const openById = (id) => (summary.areas.some((a) => a.id === id) ? setTarget(id) : openCell(id));
 
-  // Hover preview: moving between neighbouring hexagons must not flicker, so leaving is delayed a moment.
+  // Hover preview. Two delays make it easy to use: moving onto a different hexagon only switches the
+  // preview after a short pause (so crossing neighbours on the way to the centre does not flip it),
+  // and the preview lingers after the pointer leaves, long enough to reach the centre buttons.
   const hoverCell = useCallback((id, active) => {
     clearTimeout(hoverTimer.current);
-    if (active) setHoverId(id);
-    else hoverTimer.current = setTimeout(() => setHoverId((cur) => (cur === id ? null : cur)), 140);
+    if (active) {
+      hoverTimer.current = setTimeout(() => setHoverId(id), 120);
+      setHoverId((cur) => (cur === null ? id : cur));
+    } else {
+      hoverTimer.current = setTimeout(() => setHoverId(null), 1800);
+    }
   }, []);
 
   // A click pins the preview in the centre; clicking the same hexagon again opens its popup.
@@ -202,6 +238,7 @@ export default function Dashboard() {
           selected: previewId === area.id || target === area.id,
           onOpen: () => selectCell(area.id),
           onPreview: desktop ? (on) => hoverCell(area.id, on) : undefined,
+          ...dragProps(area.id),
           label: `${area.label}: ${area.hint}`,
           tourId: i === 0 ? "node-first" : undefined
         }
@@ -224,6 +261,7 @@ export default function Dashboard() {
       selected: previewId === id || info === id || (id === "goal" && target === "savings"),
       onOpen: () => selectCell(id),
       onPreview: desktop ? (on) => hoverCell(id, on) : undefined,
+      ...dragProps(id),
       label: c.info.title,
       tourId: `cell-${id}`
     };
@@ -235,17 +273,13 @@ export default function Dashboard() {
       <div className="absolute left-1/2 top-0 origin-top" style={{ width: STAGE.width, height: STAGE.height, transform: `translateX(-50%) scale(${scale})` }}>
         <div style={{ perspective: "1700px" }} className="h-full w-full">
           <div ref={tiltRef} className="relative h-full w-full" style={{ transform: "rotateX(calc(var(--py, 0) * -1.6deg)) rotateY(calc(var(--px, 0) * 2deg))", transition: "transform 0.1s linear" }}>
-            <div className="absolute inset-0" style={layerShift(-4, -3)}>
-              <Circuit locked={locked} leadId={previewId} pinned={Boolean(pinId) && pinId === previewId} />
-            </div>
-            <div className="absolute inset-0" style={layerShift(5, 4)}>
-              {RING2.map((n, i) => (
-                <HexCell key={n.id} {...infoProps(n.id, RING2_W)} absolute center={at(n.dx, n.dy)} pair={pairOf(n.dy)} delay={250 + i * 40} />
-              ))}
-              {areaCells(RING1_W).map(({ key, node, props }, i) => (
-                <HexCell key={key} {...props} absolute center={at(node.dx, node.dy)} port={node.port} pair={pairOf(node.dy)} delay={120 + i * 60} />
-              ))}
-            </div>
+            <Circuit nodes={nodes} areaIds={RING1.map((n) => n.id)} locked={locked} leadId={previewId} pinned={Boolean(pinId) && pinId === previewId} />
+            {RING2.map((n, i) => (
+              <HexCell key={n.id} {...infoProps(n.id, RING2_W)} absolute center={nodes[n.id]} pair={pairOf(n.dy)} delay={250 + i * 40} />
+            ))}
+            {areaCells(RING1_W).map(({ key, node, props }, i) => (
+              <HexCell key={key} {...props} absolute center={nodes[node.id]} port={node.port} pair={pairOf(node.dy)} delay={120 + i * 60} />
+            ))}
             <CoreHex
               summary={summary}
               onAdd={addEarning}
@@ -266,6 +300,13 @@ export default function Dashboard() {
       </div>
     </div>
   );
+
+  // Header rail: day of the month against share of the living budget used.
+  const progress = useMemo(() => {
+    const { days, today, cumulative, budget } = summary.trend;
+    const spent = cumulative[cumulative.length - 1] || 0;
+    return { day: Math.min(days, today), days, spendRatio: budget > 0 ? spent / budget : 0 };
+  }, [summary.trend]);
 
   // Month selector, with a note when looking back (shown under the header on desktop).
   const monthNav = <MonthNav />;
@@ -289,7 +330,11 @@ export default function Dashboard() {
 
   return (
     <div className="anim-page relative min-h-screen">
-      <TopBar onSettings={() => setSettingsOpen(true)} onQuickAdd={() => setQuickOpen(true)} onTour={() => setTourManual(true)} center={desktop ? monthNav : null} />
+      <TopBar onSettings={() => setSettingsOpen(true)} onQuickAdd={() => setQuickOpen(true)} onTour={() => setTourManual(true)}
+        onResetLayout={desktop && layout.moved ? layout.reset : undefined}
+        center={desktop ? monthNav : null}
+        progress={loading ? null : progress}
+      />
 
       {/* Narrow screens: the month selector sits above the console. Desktop has it in the header. */}
       {!desktop && (

@@ -716,3 +716,28 @@ dialog.popup[data-closing="true"] .popup-card {
   background: linear-gradient(90deg, transparent, rgb(var(--c-accent) / 0.8) 20%, rgb(var(--c-ink) / 0.25) 50%, rgb(var(--c-accent) / 0.8) 80%, transparent);
   box-shadow: 0 0 12px rgb(var(--c-accent) / 0.55);
 }
+
+/* Month rail under the header: elapsed time as a filled line with weekly ticks, and a hexagon marker
+   for the share of the living budget used. */
+.rail {
+  background: rgb(var(--c-ink) / 0.14);
+  box-shadow: 0 0 12px rgb(var(--c-accent) / 0.25);
+}
+.rail__fill {
+  background: linear-gradient(90deg, rgb(var(--c-accent) / 0.2), rgb(var(--c-accent)));
+  box-shadow: 0 0 10px rgb(var(--c-accent) / 0.8);
+  transition: width 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.rail__ticks {
+  background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgb(var(--c-ink) / 0.45) calc(25% - 1px) 25%);
+}
+.rail__marker {
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: rgb(var(--c-ink));
+  transition: left 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  filter: drop-shadow(0 0 4px rgb(var(--c-accent) / 0.9));
+}
+.rail__marker.is-ahead {
+  background: rgb(var(--c-ember));
+  filter: drop-shadow(0 0 5px rgb(var(--c-ember) / 0.9));
+}

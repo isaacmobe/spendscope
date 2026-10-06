@@ -73,3 +73,6 @@ export const IconCopy = (p) => (
 export const IconShield = (p) => (
   <svg {...base} {...p}><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /><path d="M9 12l2 2 4-4" /></svg>
 );
+export const IconLayout = (p) => (
+  <svg {...base} {...p}><path d="M12 3l7 4v6l-7 4-7-4V7z" /><path d="M12 11v10M9 18l3 3 3-3" /></svg>
+);

@@ -9,7 +9,7 @@ export const APP = Object.freeze({
   // Public exchange-rate feed (no API key). Override with VITE_FX_URL to use another provider
   // that returns { rates: { KES: number } }.
   fxUrl: "https://open.er-api.com/v6/latest/USD",
-  storage: Object.freeze({ theme: "spendscope-theme", tour: "spendscope-tour-done" }),
+  storage: Object.freeze({ theme: "spendscope-theme", tour: "spendscope-tour-done", layout: "spendscope-layout" }),
   // Longest note allowed on an entry (matches the server).
   noteMax: 60
 });

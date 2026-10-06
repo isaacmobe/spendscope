@@ -2,8 +2,28 @@ import { useAuth } from "../context/auth";
 import { useTheme } from "../context/theme";
 import { CURRENCIES } from "../lib/money";
 import { HexButton, HexSegmented } from "./hx";
-import { IconBolt, IconGear, IconHelp, IconMoon, IconPower, IconSun } from "./icons";
+import { IconBolt, IconGear, IconHelp, IconLayout, IconMoon, IconPower, IconSun } from "./icons";
 import Logo from "./Logo";
+
+// Under the header: how far through the month you are (accent fill, weekly ticks) against how much of
+// the living budget is used (the marker). The marker turns orange when spending runs ahead of the calendar.
+function MonthRail({ progress }) {
+  if (!progress) return <div className="hud-rail mt-3" aria-hidden />;
+  const elapsed = Math.min(1, progress.day / progress.days);
+  const used = Math.min(1, progress.spendRatio);
+  const ahead = progress.spendRatio > elapsed + 0.02;
+  return (
+    <div className="mt-3 flex items-center gap-3" role="img" aria-label={`Day ${progress.day} of ${progress.days}, ${Math.round(progress.spendRatio * 100)} percent of the living budget used.`}>
+      <span className="hidden font-mono text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-soft sm:block">Day {String(progress.day).padStart(2, "0")}/{progress.days}</span>
+      <div className="rail relative h-[3px] flex-1">
+        <div className="rail__fill absolute inset-y-0 left-0" style={{ width: `${elapsed * 100}%` }} />
+        <div className="rail__ticks absolute inset-0" />
+        <span className={`rail__marker absolute -top-[5px] h-[13px] w-[13px] -translate-x-1/2 ${ahead ? "is-ahead" : ""}`} style={{ left: `${used * 100}%` }} />
+      </div>
+      <span className={`hidden font-mono text-[10.5px] font-semibold uppercase tracking-[0.18em] sm:block ${ahead ? "text-ember" : "text-ink-soft"}`}>Budget {Math.round(progress.spendRatio * 100)}%</span>
+    </div>
+  );
+}
 
 /**
  * TopBar
@@ -14,7 +34,7 @@ import Logo from "./Logo";
  * so the row is even; names live in tooltips and screen-reader labels. On phones the three parts
  * wrap into tidy rows.
  */
-export default function TopBar({ onSettings, onQuickAdd, onTour, center }) {
+export default function TopBar({ onSettings, onQuickAdd, onTour, onResetLayout, center, progress }) {
   const { user, updateSettings, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const current = user.settings.currency;
@@ -49,6 +69,7 @@ export default function TopBar({ onSettings, onQuickAdd, onTour, center }) {
               </div>
               <span className="hidden h-6 w-px bg-ink/25 sm:block" aria-hidden />
               <div className="flex items-center gap-2">
+                {onResetLayout && action("Reset hexagon positions", onResetLayout, <IconLayout className="h-4 w-4" />, "reset-layout")}
                 {action("Quick add (Ctrl K)", onQuickAdd, <IconBolt className="h-4 w-4" />, "quick-add")}
                 {action("Tutorial", onTour, <IconHelp className="h-4 w-4" />, "tutorial")}
                 {action(dark ? "Switch to light mode" : "Switch to dark mode", toggle, dark ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />, "theme")}
@@ -59,7 +80,7 @@ export default function TopBar({ onSettings, onQuickAdd, onTour, center }) {
           </div>
         </div>
       </div>
-      <div className="hud-rail mt-3" aria-hidden />
+      <MonthRail progress={progress} />
     </header>
   );
 }
