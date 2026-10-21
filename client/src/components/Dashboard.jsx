@@ -183,14 +183,14 @@ export default function Dashboard() {
     if (area) {
       const isSavings = area.id === "savings";
       const left = area.budget - area.spent;
-      const tone = isSavings ? "good" : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
+      const tone = isSavings ? "good" : area.id === "bills" ? (area.ratio > 1.001 ? "over" : "ok") : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
       const status = isSavings ? (summary.goal ? `${Math.round(summary.goal.progress * 100)}% of your goal saved.` : "Set a goal to track it.") : left < 0 ? `Over by ${fit(-left)}.` : `${fit(left)} left.`;
       return {
         id: area.id,
         kicker: String(summary.areas.indexOf(area) + 1).padStart(2, "0"),
         title: area.label,
         value: fit(area.spent),
-        caption: area.id === "bills" ? "per month" : `of ${fit(area.budget)} share`,
+        caption: area.id === "bills" ? "committed each month" : `of ${fit(area.budget)} share`,
         text: `${area.hint}. ${status}`,
         tone,
         level: Math.min(1, isSavings ? (summary.goal ? summary.goal.progress : 0) : area.ratio),
@@ -220,7 +220,7 @@ export default function Dashboard() {
       const area = summary.areas.find((a) => a.id === n.id);
       const isSavings = area.id === "savings";
       const ratio = Math.min(1, area.ratio);
-      const tone = isSavings ? "good" : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
+      const tone = isSavings ? "good" : area.id === "bills" ? (area.ratio > 1.001 ? "over" : "ok") : area.ratio > 1 ? "over" : area.ratio > 0.85 ? "warn" : "ok";
       const caption = isSavings ? (summary.goal ? `${Math.round(summary.goal.progress * 100)}% of goal` : "set a goal") : area.id === "bills" ? "per month" : `of ${formatMoneyFit(area.budget, summary.currency)}`;
       return {
         key: n.id,

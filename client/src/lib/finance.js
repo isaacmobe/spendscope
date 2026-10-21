@@ -8,10 +8,16 @@ import { MAX_LEVEL, PLAN } from "../config/plan.js";
  * Pure functions (no React, no network) that turn raw records into everything the screen
  * shows. The UI only renders what buildSummary() returns, so every number can be tested.
  *
- * The plan is "savings first" (pay yourself first): each month's earnings are split into
- * needs / wants / savings pools (50/30/20 by default, from Warren & Tyagi, "All Your Worth"),
- * the savings pool is treated as already spent, and only the rest is spendable.
- * All thresholds live in config/plan.js.
+ * The plan is a waterfall, in this order:
+ *   1. Earnings this month.
+ *   2. Recurring bills come off first (they are committed, whatever else happens).
+ *   3. Savings next (pay yourself first): the larger of your minimum savings share and what the goal
+ *      deadline needs, but never so much that less than a minimum share of the post-bill money is
+ *      left to live on.
+ *   4. What remains is the flexible money, divided between needs (housing, food, transport) and
+ *      wants (lifestyle) in the ratio set in Settings (50:30 by default, after Warren & Tyagi's
+ *      50/30/20 in "All Your Worth").
+ * Savings fill a starter emergency fund first, then the goal. All thresholds live in config/plan.js.
  */
 const DAY_MS = 86400000;
 
@@ -95,6 +101,7 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
   const { currency, usdToKes, allocation } = settings;
   const apr = settings.savingsApr || 0;
   const emergencyMonths = settings.emergencyMonths || 3;
+  const starterMonths = settings.starterMonths ?? PLAN.starterMonths; // 0 = no starter fund
   const to = (amount, from) => convert(amount, from || "KES", currency, usdToKes);
   const fmt = (n) => formatMoney(n, currency);
 
@@ -143,23 +150,64 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
   const billsTotal = bills.reduce((sum, b) => sum + to(b.amount, b.currency), 0);
   spent.bills += billsTotal;
 
-  // 3) The plan: pay yourself first. Savings pool is set aside before anything else.
+  // 3) Starter emergency fund and goal inputs. Savings fill the starter fund first, so only what is
+  // saved beyond it counts toward the goal. The starter target is months of bills plus the basic
+  // living costs the plan allows for, worked out from the minimum savings share (so it does not
+  // depend on how much the goal asks you to save this month).
+  const free = Math.max(0, income - billsTotal); // money left once the bills are paid
+  const baseRate = allocation.savings / 100;
+  const needsShare = allocation.needs + allocation.wants > 0 ? allocation.needs / (allocation.needs + allocation.wants) : 0.5;
+  const starterTarget = income > 0 ? starterMonths * (billsTotal + needsShare * free * (1 - baseRate)) : 0;
+  const starterFunded = Math.min(savedAllTime, starterTarget);
+  const starterRemaining = Math.max(0, starterTarget - starterFunded);
+
+  const goalTarget = goal ? to(goal.targetAmount, goal.currency) : 0;
+  const goalSaved = goal ? to(goal.savedAmount || 0, goal.currency) + savedAllTime - starterFunded : 0;
+  const goalRemaining = Math.max(0, goalTarget - goalSaved);
+  let goalMonthsLeft = null;
+  let goalNeed = 0; // what the deadline asks you to save each month, starter fund included
+  if (goal && isCurrent && goal.deadline && goalRemaining > 0) {
+    goalMonthsLeft = Math.max(1, Math.ceil((new Date(goal.deadline) - today) / (PLAN.daysPerMonth * DAY_MS)));
+    goalNeed = requiredMonthly(goalTarget + starterRemaining, goalSaved, goalMonthsLeft, apr);
+  }
+
+  // 4) Savings: the larger of the minimum share and the goal's need, capped so living money remains.
+  const savingsMin = income * baseRate;
+  const savingsCap = free * (1 - PLAN.minLivingShare);
+  const savingsPlan = income > 0 ? Math.max(0, Math.min(savingsCap, Math.max(savingsMin, goalNeed))) : 0;
+  const flexible = Math.max(0, income - billsTotal - savingsPlan); // spendable after bills and savings
+
+  // 5) Pools. Bills are exact; the flexible money is divided between needs and wants.
   const pools = {
-    needs: (income * allocation.needs) / 100,
-    wants: (income * allocation.wants) / 100,
-    savings: (income * allocation.savings) / 100
+    needs: billsTotal + flexible * needsShare,
+    wants: flexible * (1 - needsShare),
+    savings: savingsPlan
   };
   const spendable = income - pools.savings; // what is left to live on after saving
   const livingPool = pools.needs + pools.wants;
 
+  // The split actually in force, as whole percentages of earnings (adds to 100).
+  const share = (n) => (income > 0 ? Math.round((n / income) * 100) : 0);
+  const planShare = { savings: share(pools.savings), wants: share(pools.wants) };
+  planShare.needs = income > 0 ? Math.max(0, 100 - planShare.savings - planShare.wants) : 0;
+
+  // Weights of the variable needs areas (housing, food, transport) among themselves.
+  const varNeeds = AREAS.filter((a) => a.group === "needs" && a.id !== "bills");
+  const varNeedsWeight = varNeeds.reduce((sum, a) => sum + a.weight, 0);
+
   const areas = AREAS.map((a) => {
-    const budget = pools[a.group] * a.weight;
+    let budget;
+    if (a.id === "bills") budget = billsTotal;
+    else if (a.group === "needs") budget = flexible * needsShare * (a.weight / varNeedsWeight);
+    else if (a.group === "wants") budget = pools.wants;
+    else budget = pools.savings;
     const projected = isCurrent && a.variable && elapsed >= PLAN.paceFromElapsed ? spent[a.id] / elapsed : null;
     return {
       ...a,
       budget,
       spent: spent[a.id],
       projected,
+      // Bills are committed in full, so "exactly the bills" is 100%, not an overspend.
       ratio: budget > 0 ? spent[a.id] / budget : spent[a.id] > 0 ? 2 : 0
     };
   });
@@ -194,18 +242,16 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
   }
   const trend = { days: dim, today: dayNow, cumulative, budget: livingPool };
 
-  // 6) Goal projection (the motorbike), with growth if the user sets a savings rate.
+  // 6) Goal projection (the motorbike), with growth if the user sets a savings rate. Savings first
+  // fill the starter fund, which delays the goal by the months that takes.
   let goalSummary = null;
   if (goal) {
-    const target = to(goal.targetAmount, goal.currency);
-    const saved = to(goal.savedAmount || 0, goal.currency) + savedAllTime;
-    const remaining = Math.max(0, target - saved);
     const g = {
       name: goal.name,
-      target,
-      saved,
-      remaining,
-      progress: target > 0 ? Math.min(1, saved / target) : 0,
+      target: goalTarget,
+      saved: goalSaved,
+      remaining: goalRemaining,
+      progress: goalTarget > 0 ? Math.min(1, goalSaved / goalTarget) : 0,
       monthsToGo: null,
       eta: null,
       required: null,
@@ -214,25 +260,29 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
       gap: 0,
       interest: 0,
       soonerBy: null,
-      reached: remaining === 0
+      starterDelay: 0,
+      reached: goalRemaining === 0
     };
 
     if (isCurrent) {
-      g.monthsToGo = monthsToReach(target, saved, pools.savings, apr);
+      // The starter fund and the goal are one running total of savings, so they share one month count
+      // (rounding the two separately would overshoot). The starter fund is shown as a delay for context.
+      const total = goalTarget + starterRemaining;
+      g.starterDelay = starterRemaining > 0 && pools.savings > 0 ? Math.ceil(starterRemaining / pools.savings - 1e-9) : 0;
+      g.monthsToGo = monthsToReach(total, goalSaved, pools.savings, apr);
       g.eta = g.monthsToGo == null ? null : addMonths(today, g.monthsToGo);
 
       if (g.monthsToGo) {
         // Growth earned on the way, and how much sooner a few more points of earnings would get you there.
-        g.interest = Math.max(0, futureBalance(saved, pools.savings, apr, g.monthsToGo) - saved - pools.savings * g.monthsToGo);
+        g.interest = Math.max(0, futureBalance(goalSaved, pools.savings, apr, g.monthsToGo) - goalSaved - pools.savings * g.monthsToGo);
         if (income > 0) {
-          const faster = monthsToReach(target, saved, pools.savings + income * PLAN.whatIfShare, apr);
+          const faster = monthsToReach(total, goalSaved, pools.savings + income * PLAN.whatIfShare, apr);
           if (faster != null && faster < g.monthsToGo) g.soonerBy = g.monthsToGo - faster;
         }
       }
 
-      if (goal.deadline && remaining > 0) {
-        const monthsLeft = Math.max(1, Math.ceil((new Date(goal.deadline) - today) / (PLAN.daysPerMonth * DAY_MS)));
-        g.required = requiredMonthly(target, saved, monthsLeft, apr);
+      if (goalMonthsLeft != null) {
+        g.required = goalNeed;
         g.onTrack = pools.savings >= g.required - 0.5;
         g.gap = Math.max(0, g.required - pools.savings);
         if (income > 0) g.suggestedPercent = Math.ceil((g.required / income) * 100);
@@ -279,6 +329,16 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
         add("info", `Pay yourself first: set aside ${fmt(pools.savings - groupSpent.savings)} more this month to match your savings plan.`);
       }
     }
+    if (isCurrent) {
+      const pct = (n) => Math.round((n / income) * 100);
+      add("info", `Bills take ${fmt(billsTotal)} (${pct(billsTotal)}% of earnings). Saving ${fmt(pools.savings)} (${pct(pools.savings)}%) leaves ${fmt(flexible)} to spend.`);
+      if (starterRemaining > 0) {
+        add("info", `Your first ${fmt(starterTarget)} of savings builds a starter emergency fund (${fmt(starterRemaining)} to go). The ${goal ? goal.name : "goal"} fund starts after that.`);
+      }
+      if (goalNeed > savingsMin + 0.5 && pools.savings >= goalNeed - 0.5) {
+        add("info", `Your deadline needs ${fmt(goalNeed)} a month, so the plan saves ${pct(goalNeed)}% of earnings, above your ${Math.round(baseRate * 100)}% minimum.`);
+      }
+    }
     if (prevIncome > 0 && income > prevIncome) {
       add("good", `Earnings ${isCurrent ? "are" : "were"} ${fmt(income - prevIncome)} above the month before. Saving ${Math.round(PLAN.raiseSaveShare * 100)}% of any increase (${fmt((income - prevIncome) * PLAN.raiseSaveShare)}) raises your savings without cutting your spending.`);
     }
@@ -312,7 +372,14 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
     prevIncome,
     incomeEntries,
     entries,
-    allocation,
+    allocation: planShare,
+    settingsAllocation: allocation,
+    free,
+    flexible,
+    savingsMin,
+    savingsCap,
+    goalNeed,
+    starter: { target: starterTarget, funded: starterFunded, remaining: starterRemaining, months: starterMonths },
     pools,
     spendable,
     livingPool,
@@ -332,6 +399,6 @@ export function buildSummary({ transactions, bills, goal, settings, now = new Da
     apr,
     goal: goalSummary,
     dueSoon,
-    insights: insights.slice(0, 6)
+    insights: insights.slice(0, 8)
   };
 }

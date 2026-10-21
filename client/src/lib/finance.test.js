@@ -5,7 +5,8 @@ import { convert, formatMoney } from "./money.js";
 import { MAX_LEVEL, PLAN } from "../config/plan.js";
 
 const NOW = new Date(2026, 9, 15); // 15 Oct 2026
-const settings = { currency: "KES", usdToKes: 100, allocation: { needs: 50, wants: 30, savings: 20 } };
+const settings = { currency: "KES", usdToKes: 100, allocation: { needs: 50, wants: 30, savings: 20 }, starterMonths: 0 }; // starter fund off unless a test turns it on
+const withStarter = { ...settings, starterMonths: 1 };
 const tx = (over) => ({ amount: 0, currency: "KES", type: "expense", category: "food", date: new Date(2026, 9, 3).toISOString(), ...over });
 
 test("convert uses the user's rate in both directions", () => {
@@ -32,7 +33,7 @@ test("only this month's earnings feed the plan, with mixed currencies", () => {
     now: NOW
   });
   assert.equal(s.income, 100000);
-  assert.deepEqual(s.pools, { needs: 50000, wants: 30000, savings: 20000 });
+  assert.deepEqual(s.pools, { needs: 50000, wants: 30000, savings: 20000 }); // no bills: the plain 50/30/20 split
   assert.equal(s.pools.needs + s.pools.wants + s.pools.savings, s.income);
 });
 
@@ -49,15 +50,21 @@ test("area budgets split their group by weight and spending is tracked", () => {
     now: NOW
   });
   const by = Object.fromEntries(s.areas.map((a) => [a.id, a]));
-  assert.equal(by.housing.budget, 20000); // 50,000 needs * 0.4
-  assert.equal(by.housing.ratio, 1);
+  // Bills 3,000 come off first, savings take 20,000, so 77,000 is flexible: 62.5% needs, 37.5% wants.
+  assert.equal(by.bills.budget, 3000);
+  assert.equal(by.bills.ratio, 1); // exactly the bills is 100%, not an overspend
+  assert.equal(by.savings.budget, 20000);
+  assert.equal(by.housing.budget, 24062.5); // 77,000 * 0.625 * (0.4 / 0.8)
+  assert.equal(by.food.budget, 15039.0625); // 77,000 * 0.625 * (0.25 / 0.8)
+  assert.equal(by.lifestyle.budget, 28875); // 77,000 * 0.375
+  assert.equal(by.housing.ratio, 20000 / 24062.5);
   assert.equal(by.lifestyle.spent, 3000);
   assert.equal(by.bills.spent, 3000);
   assert.equal(s.totalSpent, 26000);
   assert.equal(s.leftover, 74000);
 });
 
-test("motorbike projection: progress, ETA and deadline pace", () => {
+test("motorbike projection: progress and ETA", () => {
   const base = { transactions: [tx({ type: "income", category: "earnings", amount: 100000 }), tx({ amount: 20000, category: "savings" })], bills: [], settings, now: NOW };
   const goal = { name: "Motorbike", targetAmount: 250000, savedAmount: 30000, currency: "KES" };
   const s = buildSummary({ ...base, goal });
@@ -66,13 +73,65 @@ test("motorbike projection: progress, ETA and deadline pace", () => {
   assert.equal(s.goal.monthsToGo, 10); // 200,000 / 20,000 per month
   assert.equal(s.goal.eta.getMonth(), (9 + 10) % 12);
 
-  const tight = buildSummary({ ...base, goal: { ...goal, deadline: new Date(2027, 0, 15).toISOString() } });
-  assert.equal(tight.goal.onTrack, false); // needs ~66k/month vs 20k planned
-  assert.ok(tight.insights.some((i) => i.text.includes("by your deadline")));
-
   const done = buildSummary({ ...base, goal: { ...goal, targetAmount: 40000 } });
   assert.equal(done.goal.reached, true);
   assert.equal(done.goal.monthsToGo, 0);
+});
+
+test("a deadline raises savings above the minimum, within what the bills leave", () => {
+  const base = { transactions: [tx({ type: "income", category: "earnings", amount: 100000 })], bills: [], settings, now: NOW };
+  // 6 months to find 250,000 = 41,666.67 a month: more than the 20,000 minimum, less than the cap.
+  const s = buildSummary({ ...base, goal: { name: "Motorbike", targetAmount: 250000, savedAmount: 0, currency: "KES", deadline: new Date(2027, 3, 15).toISOString() } });
+  assert.ok(Math.abs(s.pools.savings - 250000 / 6) < 0.01);
+  assert.equal(s.goal.onTrack, true);
+  assert.equal(s.goal.monthsToGo, 6);
+  assert.ok(s.pools.savings > s.savingsMin);
+  assert.ok(s.insights.length > 0);
+});
+
+test("savings never squeeze out living money: capped, and the gap is reported", () => {
+  const s = buildSummary({
+    transactions: [tx({ type: "income", category: "earnings", amount: 100000 })],
+    bills: [{ name: "Rent", amount: 20000, currency: "KES", dueDay: 1 }],
+    goal: { name: "Motorbike", targetAmount: 250000, savedAmount: 0, currency: "KES", deadline: new Date(2026, 11, 15).toISOString() }, // 3 months
+    settings,
+    now: NOW
+  });
+  // 80,000 is free after bills; at most 65% of it (52,000) may be saved, but the goal wants ~83,333.
+  assert.equal(s.free, 80000);
+  assert.equal(s.pools.savings, 52000);
+  assert.equal(s.goal.onTrack, false);
+  assert.ok(s.goal.gap > 31000 && s.goal.gap < 31400);
+  assert.ok(s.insights.some((i) => i.tone === "warn" && i.text.includes("by your deadline")));
+  assert.equal(Math.round(s.pools.needs + s.pools.wants + s.pools.savings), 100000); // everything is accounted for
+});
+
+test("the plan in force adds up to 100% and follows the bills", () => {
+  const s = buildSummary({ transactions: [tx({ type: "income", category: "earnings", amount: 44000 })], bills: [{ name: "Apps", amount: 24.19, currency: "USD", dueDay: 5 }], goal: null, settings: { ...settings, usdToKes: 129 }, now: NOW });
+  assert.ok(Math.abs(s.billsTotal - 3120.51) < 0.01); // USD bills keep their currency and convert at your rate
+  assert.equal(s.allocation.needs + s.allocation.wants + s.allocation.savings, 100);
+  assert.ok(s.allocation.savings >= 20);
+});
+
+test("starter emergency fund is filled before the goal", () => {
+  const base = { transactions: [tx({ type: "income", category: "earnings", amount: 100000 }), tx({ amount: 30000, category: "savings" })], bills: [{ name: "Rent", amount: 20000, currency: "KES", dueDay: 1 }], settings: withStarter, now: NOW };
+  const goal = { name: "Motorbike", targetAmount: 250000, savedAmount: 0, currency: "KES" };
+  const s = buildSummary({ ...base, goal });
+  // Starter target: 1 month of bills + basic living = 20,000 + 0.625 * 80,000 * 0.8 = 60,000.
+  assert.equal(s.starter.target, 60000);
+  assert.equal(s.starter.funded, 30000); // the 30,000 saved so far all goes to the starter fund
+  assert.equal(s.starter.remaining, 30000);
+  assert.equal(s.goal.saved, 0); // nothing reaches the goal yet
+  // Savings plan is 20% of 100,000. 30,000 starter + 250,000 goal at 20,000 a month = 14 months.
+  assert.equal(s.pools.savings, 20000);
+  assert.equal(s.goal.monthsToGo, 14);
+  assert.equal(s.goal.starterDelay, 2);
+  assert.ok(s.starter.funded + s.starter.remaining === s.starter.target);
+
+  // Once the starter fund is full, extra savings count toward the goal.
+  const more = buildSummary({ ...base, transactions: [...base.transactions, tx({ amount: 45000, category: "savings" })], goal });
+  assert.equal(more.starter.remaining, 0);
+  assert.equal(more.goal.saved, 15000); // 75,000 saved - 60,000 starter
 });
 
 test("no earnings gives guidance instead of NaN", () => {
@@ -138,20 +197,6 @@ test("what-if: saving 5% more of earnings shortens the wait", () => {
   assert.equal(s.goal.monthsToGo, 13); // 250,000 / 20,000
   assert.equal(s.goal.soonerBy, 3); // 250,000 / 25,000 = 10 months
   assert.ok(s.insights.some((i) => i.text.includes("5% more")));
-});
-
-test("deadline gap, suggested savings percent and trim advice", () => {
-  const s = buildSummary({
-    transactions: [tx({ type: "income", category: "earnings", amount: 100000 })],
-    bills: [],
-    goal: { name: "Motorbike", targetAmount: 250000, savedAmount: 0, currency: "KES", deadline: new Date(2027, 3, 15).toISOString() },
-    settings,
-    now: NOW
-  });
-  assert.equal(s.goal.onTrack, false);
-  assert.ok(s.goal.gap > 0);
-  assert.ok(s.goal.suggestedPercent > 20);
-  assert.ok(s.insights.some((i) => i.tone === "warn" && i.text.includes("trimming Lifestyle")));
 });
 
 test("safety net target is months of planned essentials", () => {

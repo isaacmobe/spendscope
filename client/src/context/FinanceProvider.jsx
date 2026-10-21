@@ -140,7 +140,7 @@ export function FinanceProvider({ children }) {
   const addBill = useCallback(
     (payload) =>
       run(async () => {
-        const res = await billsApi.create({ ...payload, currency: settings.currency });
+        const res = await billsApi.create({ currency: settings.currency, ...payload });
         setBills((prev) => [...prev, res.data].sort((a, b) => a.dueDay - b.dueDay));
         pulse("spend");
       }, "Could not save the bill."),

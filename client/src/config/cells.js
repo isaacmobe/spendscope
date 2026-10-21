@@ -18,22 +18,22 @@ export const CELL_INFO = Object.freeze({
   },
   needs: {
     title: "Needs",
-    short: "Earnings times your needs share. Pays Housing, Food, Transport and Bills.",
-    explain: "Earnings times your needs share. It pays for Housing, Food, Transport and Bills. The bar shows how much of it is used."
+    short: "Bills plus your share of the flexible money for Housing, Food and Transport.",
+    explain: "Your recurring bills, exactly, plus the needs share of the money left after bills and savings. It pays for Housing, Food, Transport and Bills. The bar shows how much of it is used."
   },
   wants: {
     title: "Wants",
-    short: "Earnings times your wants share. Pays Lifestyle: fun, shopping, subscriptions.",
-    explain: "Earnings times your wants share. It pays for Lifestyle: fun, shopping and subscriptions."
+    short: "Your share of the flexible money for Lifestyle: fun, shopping, subscriptions.",
+    explain: "The wants share of the money left after bills and savings. It pays for Lifestyle: fun, shopping and subscriptions."
   },
   pool: {
     title: "Savings",
-    short: "Earnings times your savings share, set aside first. It goes to your goal.",
-    explain: "Earnings times your savings share. It is set aside first, before you spend, so you pay yourself first. It goes to your goal."
+    short: "What the plan sets aside first: your minimum, or more if your goal deadline needs it.",
+    explain: "Savings come right after bills, before you spend. It is the larger of your minimum savings share and what your goal deadline needs each month, but never so much that less than a set share of the money left after bills stays for living."
   },
   after: {
     title: "After saving",
-    short: "Earnings minus the savings pool: what you have to live on.",
+    short: "Earnings minus the savings set aside: bills plus everything you can spend.",
     explain: "Earnings minus the savings pool: what you have left to live on once your savings are set aside."
   },
   left: {
@@ -47,9 +47,9 @@ export const CELL_INFO = Object.freeze({
     explain: "A game-style score from the share of your earnings you saved this month. Each step up is a bigger share, and the top level is reached at the savings target."
   },
   net: {
-    title: "Safety net",
-    short: "Months of essentials kept for emergencies. Three to six is common.",
-    explain: "Months of planned essentials (your needs pool) to keep aside for emergencies. Common guidance is three to six months, and more if your income varies."
+    title: "Emergency fund",
+    short: "Savings fill this emergency buffer first. Then the goal fund starts, and the 3-month safety net comes next.",
+    explain: "Your first savings build a starter emergency fund: one month of bills plus basic living costs. Only savings beyond it count toward your goal. Once it is full, this hexagon shows your longer safety net target."
   },
   pace: {
     title: "Spending pace",

@@ -11,6 +11,13 @@ export const PLAN = Object.freeze({
   // A projection longer than this many months is shown as "not reachable" (50 years).
   maxProjectionMonths: 600,
 
+  // Bills-first plan. After recurring bills, at least this share of the money that is left stays
+  // available for living, so a very ambitious goal can never squeeze out food and transport.
+  minLivingShare: 0.35,
+  // Savings fill a starter emergency fund first: this many months of bills plus basic living costs.
+  // Only after that do they count toward the goal. Use 0 to send every saving straight to the goal.
+  starterMonths: 1,
+
   // Savings share of earnings that counts as "on target". 0.20 is the savings part of 50/30/20.
   savingsTarget: 0.2,
   // Share-of-earnings steps for saver levels. Level 0 = nothing saved, then +1 per step reached.

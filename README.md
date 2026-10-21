@@ -130,7 +130,7 @@ Base URL: `http://localhost:5000`
 ## Features
 
 - **Hexagon console.** Enter earnings in the core; six hexagon areas (Housing, Food, Transport, Bills, Lifestyle, Motorbike Fund) take your spending. Light and dark themes, a honeycomb background, and a calm Three.js scene that reacts to what you do. Fully responsive.
-- **Savings-first plan.** Earnings are split into needs / wants / savings (default 50/30/20). Savings are set aside first.
+- **Bills-first, savings-first plan.** Recurring bills come off first, then savings (at least your minimum share, more if your goal deadline needs it), then the rest is yours to spend. Savings fill a starter emergency fund before the goal.
 - **Goal projection** with compound growth, deadline gap, "what if I save 5% more", and a safety-net target.
 - **Safe to spend today**, a **spending-pace chart**, month-by-month **history**, and rule-based advice.
 - **Quick add** (Ctrl/Cmd+K): type `food 450 lunch`, `rent 30k`, `+85000 salary`.
@@ -149,6 +149,14 @@ Requirements: Node 20.19+ (or 22.12+) and a MongoDB (Atlas free cluster is fine)
 3. `cd client && npm ci && npm run dev` (app on **http://localhost:5290**; `/api` is proxied to the server).
    Change the ports in `client/.env` (see `client/.env.example`).
 4. Tests: `npm test` in `client/` (engine and helpers) and in `server/` (API; database tests need `MONGO_TEST_URI`, see below).
+
+### Optional: encrypt your local `.env` with dotenvx
+
+`npm run dev` in `server/` runs through [dotenvx](https://dotenvx.com) (the open-source CLI, free), which loads a plain `.env` exactly as before. To encrypt it at rest on your machine: `npm run env:encrypt` in `server/`. That rewrites `.env` with encrypted values and creates `.env.keys` (the private key; both stay gitignored, never commit or share the key). `npm run dev` and `npm run reset-password` decrypt at run time. Use `npx dotenvx run -- node index.js` instead of `npm start` if you start the server directly with an encrypted file. Undo with `npm run env:decrypt`. Vercel keeps using its own environment variables. dotenvx Ops (paid, managed private keys and syncing across machines) is optional and not required.
+
+### MongoDB says "could not connect" or "IP not whitelisted"?
+
+In Atlas open **Network Access > Add IP Address** and add your current IP (or `0.0.0.0/0` while testing). The server no longer stops when this happens: it keeps running, answers the app with a 503, and retries the connection every 5 seconds, so it recovers by itself once Atlas accepts you.
 
 ### Forgot your password?
 
@@ -178,14 +186,18 @@ Passwords are stored as one-way hashes, so they cannot be read back. Options, in
 
 All of it lives in `client/src/lib/finance.js` (pure functions covered by tests); every threshold is in `client/src/config/plan.js`.
 
-1. **Earnings** are the viewed month's income entries, converted to the display currency with your rate.
-2. **Pay yourself first.** Earnings are split into needs / wants / savings pools (default 50/30/20, from Warren and Tyagi, *All Your Worth*). "Spendable after saving" = earnings - savings pool.
-3. **Areas.** Needs are shared Housing 40%, Food 25%, Transport 15%, Bills 20%; Lifestyle is all of wants; the Motorbike Fund is all of savings (weights in `lib/areas.js`).
-4. **Goal projection.** Months to the goal solve `saved*(1+r)^n + P*((1+r)^n - 1)/r = price` (P = monthly savings pool, r = yearly growth / 12; plain division when growth is 0). A deadline gives the required monthly amount, the gap, and the savings percentage needed.
-5. **Safe to spend today** = (needs pool + wants pool - spent so far) / days left, today included.
-6. **Spending pace** = running total of needs + wants (bills on their due day, savings excluded) against the living budget.
-7. **Safety net** = months (default 3) x the planned needs pool.
-8. **Advice** is rule-based: overspend, month-end pace for food/transport/lifestyle, bills due within 7 days, saving half of an earnings increase, moving unspent money to savings in the last 7 days.
+The plan is a waterfall, in this order:
+
+1. **Earnings** `I` are the viewed month's income entries, converted to the display currency with your rate.
+2. **Bills** `F` come off first, exactly as entered. Each bill keeps its own currency (a US dollar subscription stays in dollars and converts at your rate). Money left after bills: `free = I - F`.
+3. **Savings** `S = min(cap, max(minimum, need))`, where `minimum = I x savings share` (20% by default), `need` = what the goal deadline requires each month (below), and `cap = free x 65%`, so at least 35% of the post-bill money always stays for living (`minLivingShare` in `plan.js`). Pay yourself first (the idea behind 50/30/20, Warren and Tyagi, *All Your Worth*).
+4. **Flexible money** `D = I - F - S` is divided between needs and wants in the ratio of the Needs and Wants settings (50:30 by default, so 62.5% / 37.5%). The needs part is shared Housing 50%, Food 31.25%, Transport 18.75% (the old 40/25/15 weights without Bills); Lifestyle gets all of the wants part. The Needs, Wants and Savings figures on screen are the split actually in force, as whole percentages.
+5. **Starter emergency fund.** Savings first fill a starter fund of `starterMonths` (1) x (bills + basic living costs), where basic living = needs share x free x (1 - minimum share). Only savings beyond it count toward the goal. Set `starterMonths` to 0 in `plan.js` to skip it.
+6. **Goal projection.** Months to the goal solve `saved*(1+r)^n + S*((1+r)^n - 1)/r = price + starter fund still missing` (r = yearly growth / 12; plain division when growth is 0). With a deadline, `need = requiredMonthly(price + starter missing, saved, months left, growth)`, which is what step 3 uses.
+7. **Safe to spend today** = (needs pool + wants pool - spent so far) / days left, today included. Bills count in full from day 1, because they are committed.
+8. **Spending pace** = running total of needs + wants (bills on their due day, savings excluded) against the living budget.
+9. **Safety net** = months (default 3) x the planned needs pool (bills plus planned essentials).
+10. **Advice** is rule-based: overspend, month-end pace for food/transport/lifestyle, bills due within 7 days, saving half of an earnings increase, moving unspent money to savings in the last 7 days.
 
 ## Deploy to Vercel
 

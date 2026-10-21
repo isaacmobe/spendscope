@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AmountForm from "./AmountForm";
-import { HexButton, HexDot, HexField, HexMeter, HexStepper } from "./hx";
+import { HexButton, HexDot, HexField, HexMeter, HexSegmented, HexStepper } from "./hx";
+import { CURRENCIES } from "../lib/money";
 import { IconTrash } from "./icons";
 import { useFinance } from "../context/finance";
 import { formatMoney } from "../lib/money";
@@ -99,6 +100,7 @@ export function BillsPanel() {
   const { currency } = summary;
   const [form, setForm] = useState({ name: "", amount: "" });
   const [dueDay, setDueDay] = useState(1);
+  const [billCurrency, setBillCurrency] = useState(currency); // a bill keeps its own currency, e.g. a USD subscription
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -111,7 +113,7 @@ export function BillsPanel() {
     setError("");
     setBusy(true);
     try {
-      await addBill({ name: form.name.trim(), amount, dueDay });
+      await addBill({ name: form.name.trim(), amount, dueDay, currency: billCurrency });
       setForm({ name: "", amount: "" });
     } catch {
       /* error banner shows the server message */
@@ -127,7 +129,11 @@ export function BillsPanel() {
       </p>
       <form onSubmit={submit} className="space-y-3" noValidate>
         <HexField label="Bill" value={form.name} maxLength={60} onChange={set("name")} placeholder="e.g. Wi-Fi" />
-        <HexField label={`Amount (${currency})`} type="number" inputMode="decimal" step="any" min="0" value={form.amount} onChange={set("amount")} />
+        <HexField label={`Amount (${billCurrency})`} type="number" inputMode="decimal" step="any" min="0" value={form.amount} onChange={set("amount")} />
+        <div>
+          <span className="hx-label">Billed in</span>
+          <HexSegmented label="Bill currency" options={CURRENCIES} value={billCurrency} onChange={setBillCurrency} />
+        </div>
         <HexStepper label="Due day of the month" value={dueDay} onChange={setDueDay} min={1} max={31} format={(n) => `the ${n}${ordinal(n)}`} />
         <HexButton type="submit" variant="solid" disabled={busy} className="w-full">
           Add bill
@@ -150,7 +156,10 @@ export function BillsPanel() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="font-mono text-sm">{formatMoney(toDisplay(b.amount, b.currency), currency)}</span>
+                  <span className="text-right font-mono text-sm">
+                    {formatMoney(toDisplay(b.amount, b.currency), currency)}
+                    {b.currency !== currency && <span className="block text-[10.5px] text-ink-soft">{formatMoney(b.amount, b.currency)}</span>}
+                  </span>
                   <ConfirmDelete label={b.name} onConfirm={() => removeBill(b._id).catch(() => {})} />
                 </div>
               </li>

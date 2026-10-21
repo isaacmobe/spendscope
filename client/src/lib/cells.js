@@ -43,6 +43,7 @@ export function buildCells(summary) {
   const needsRatio = group(groupSpent.needs, pools.needs);
   const wantsRatio = group(groupSpent.wants, pools.wants);
   const savedRatio = group(groupSpent.savings, pools.savings);
+  const starter = summary.starter;
 
   const paceRatio = livingPool > 0 ? totalSpent / livingPool : 0;
   const warns = insights.filter((i) => i.tone === "warn").length;
@@ -56,7 +57,9 @@ export function buildCells(summary) {
     { id: "after", kicker: "After saving", value: fmt(spendable), caption: "to live on", tone: "ok", level: hasIncome ? Math.max(0, Math.min(1, spendable / income)) : 0 },
     { id: "left", kicker: "Left", value: fmt(leftover), caption: isCurrent ? "this month" : "that month", tone: leftover < 0 ? "over" : "ok", level: hasIncome ? Math.max(0, Math.min(1, leftover / income)) : 0 },
     { id: "level", kicker: "Saver level", value: `${level} / ${maxLevel}`, caption: `${pct(savingsRate)} saved`, tone: "good", level: level / maxLevel },
-    { id: "net", kicker: "Safety net", value: fmt(emergencyTarget), caption: `${emergencyMonths} month${emergencyMonths === 1 ? "" : "s"}`, tone: "ok", level: 0 },
+    starter && starter.target > 0 && starter.remaining > 0
+      ? { id: "net", kicker: "Starter fund", value: fmt(starter.funded), caption: `of ${fmt(starter.target)}`, tone: "ok", level: Math.min(1, starter.funded / starter.target) }
+      : { id: "net", kicker: "Safety net", value: fmt(emergencyTarget), caption: `${emergencyMonths} month${emergencyMonths === 1 ? "" : "s"}`, tone: "good", level: starter && starter.target > 0 ? 1 : 0 },
     { id: "pace", kicker: "Pace", value: livingPool > 0 ? pct(paceRatio) : "--", caption: "of budget", tone: livingPool > 0 ? tone(paceRatio) : "muted", level: Math.min(1, paceRatio), spark: trend.cumulative, sparkMax: Math.max(livingPool, trend.cumulative[trend.cumulative.length - 1] || 0, 1) },
     { id: "advice", kicker: "Advice", value: `${insights.length} tip${insights.length === 1 ? "" : "s"}`, caption: warns ? `${warns} warning${warns === 1 ? "" : "s"}` : "all clear", tone: warns ? "warn" : "ok", level: 0 },
     { id: "quick", kicker: "Quick add", value: "Ctrl K", caption: "type a line", tone: "ok", level: 0 }

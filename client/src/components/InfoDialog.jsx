@@ -91,10 +91,11 @@ export default function InfoDialog({ id, onClose, onSweep }) {
       </div>
     );
   } else if (id === "net") {
+    const { starter } = summary;
     body = (
       <div className="grid grid-cols-2 gap-3">
-        <Figure label={`Target, ${emergencyMonths} month${emergencyMonths === 1 ? "" : "s"}`} value={money(emergencyTarget)} />
-        <Figure label="Needs per month" value={money(pools.needs)} />
+        <Figure label="Starter fund saved" value={`${money(starter.funded)} of ${money(starter.target)}`} />
+        <Figure label={`Safety net, ${emergencyMonths} month${emergencyMonths === 1 ? "" : "s"}`} value={money(emergencyTarget)} />
       </div>
     );
   } else if (id === "advice") {

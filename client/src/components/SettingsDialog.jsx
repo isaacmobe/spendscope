@@ -96,7 +96,7 @@ function PlanTab({ onClose }) {
         </div>
 
         <fieldset>
-          <legend className="hx-label">How each month's earnings are split</legend>
+          <legend className="hx-label">How your money is planned</legend>
           <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {PLAN.presets.map((p) => (
               <HexButton key={p.label} size="sm" variant="ghost" className="w-full" title={p.label} onClick={() => setSplit({ ...p.values })}>
@@ -110,7 +110,7 @@ function PlanTab({ onClose }) {
             <HexStepper label="Savings" value={split.savings} onChange={part("savings")} step={5} max={100} format={(n) => `${n}%`} />
           </div>
           <p className={`ml-4 mt-2 font-mono text-xs ${total === 100 ? "text-accent" : "text-rose-deep"}`}>Total: {total}%</p>
-          <Note>Needs: housing, food, transport, bills. Wants: lifestyle. Savings are set aside first, before you spend.</Note>
+          <Note>Bills come off first, exactly as entered. Savings is your minimum share of earnings (the plan saves more if your goal deadline needs it). Needs and wants set how the money left after that is divided: needs pays housing, food and transport, wants pays lifestyle.</Note>
         </fieldset>
       </div>
 
