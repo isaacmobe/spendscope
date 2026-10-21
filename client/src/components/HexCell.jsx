@@ -1,77 +1,24 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import HexFrame from "./HexFrame";
 import { hexHeight } from "./hexGeometry";
 import { IconLock } from "./icons";
-import { rgb } from "../lib/tokens";
-
-// Tiny line chart inside a cell (cumulative spending through the month).
-function Spark({ values, max, color }) {
-  if (!values || values.length < 2) return <span className="h-[14px]" />;
-  const w = 64;
-  const h = 14;
-  const pts = values.map((v, i) => `${((i / (values.length - 1)) * w).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`).join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="mt-1 overflow-visible" aria-hidden="true">
-      <polyline points={pts} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: color }} />
-    </svg>
-  );
-}
 
 /**
  * HexCell
  * -------
- * One hexagon of the honeycomb: a spending area (large, with the text inside) or an information
- * cell (smaller). It is a real button: click opens the matching popup. Hover or keyboard focus
- * gives the solid indigo "selected" look and a small 3D tilt toward the pointer; when its value
- * changes a ring pulses once. Mirrored cells share the same float timing (`pair`) so the two sides
+ * One envelope hexagon, with its text inside. It is a real button: click opens the matching popup.
+ * Hover or keyboard focus gives the solid indigo "selected" look and a small 3D tilt toward the
+ * pointer; when its value changes a ring pulses once. Mirrored cells share the same float timing (`pair`) so the two sides
  * of the console always move together.
  *   Every colour comes from theme variables, and text sits on a surface that sets its own colour.
  */
-export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, spark, sparkMax, onOpen, onPreview, label, center, delay = 0, pair = 0, tourId, absolute = true, dim = false, draggable = false, scale = 1, onDragStart, onDrag }) {
+export default function HexCell({ size, kicker, title, value, caption, tone = "ok", level = 0, icon: Icon, locked, selected, port, onOpen, label, center, delay = 0, pair = 0, tourId, absolute = true }) {
   const tilt = useRef(null);
-  const drag = useRef(null); // { x, y } where the pointer went down, while it is down
-  const moved = useRef(false); // true once the pointer has travelled far enough to count as a drag
-  const [dragging, setDragging] = useState(false);
   const h = hexHeight(size);
   const big = size >= 150;
   const soft = "hc-soft";
 
-  // Dragging: press and move more than a few pixels to carry the hexagon; a plain click still opens it.
-  const onDown = (e) => {
-    if (!draggable || e.button !== 0) return;
-    drag.current = { x: e.clientX, y: e.clientY };
-    moved.current = false;
-    onDragStart?.();
-  };
-  const onDragMove = (e) => {
-    if (!drag.current) return false;
-    const dx = e.clientX - drag.current.x;
-    const dy = e.clientY - drag.current.y;
-    if (!moved.current && Math.hypot(dx, dy) < 6) return false;
-    if (!moved.current) {
-      moved.current = true;
-      setDragging(true);
-      e.currentTarget.setPointerCapture(e.pointerId);
-      if (tilt.current) tilt.current.style.transform = "";
-    }
-    onDrag?.(dx / scale, dy / scale); // screen pixels to stage units
-    return true;
-  };
-  const onUp = () => {
-    drag.current = null;
-    setDragging(false);
-  };
-  const onClick = (e) => {
-    if (moved.current) {
-      moved.current = false; // the click that ends a drag must not open the cell
-      e.preventDefault();
-      return;
-    }
-    onOpen?.();
-  };
-
   const onMove = (e) => {
-    if (onDragMove(e)) return;
     if (locked || !tilt.current) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width - 0.5;
@@ -80,34 +27,23 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
   };
   const onLeave = () => {
     if (tilt.current) tilt.current.style.transform = "";
-    onPreview?.(false);
   };
-  // Mouse hover and keyboard focus preview the cell in the centre; a touch is handled by the click.
-  const onEnter = (e) => {
-    if (e.pointerType !== "touch" && !locked) onPreview?.(true);
-  };
-
-  const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms`, zIndex: dragging ? 30 : undefined } : { width: size, height: h, animationDelay: `${delay}ms` };
+  const wrapper = absolute && center ? { left: center.x - size / 2, top: center.y - h / 2, width: size, height: h, animationDelay: `${delay}ms` } : { width: size, height: h, animationDelay: `${delay}ms` };
 
   return (
     <div className={`anim-rise ${absolute ? "absolute" : "relative shrink-0"}`} style={wrapper} data-tour={tourId}>
-      <div className={`anim-float cell-wrap ${dim ? "cell-dim" : ""}`} style={{ animationDelay: `${-pair * 1.3}s`, animationDuration: `${5.2 + pair * 0.6}s` }}>
+      <div className="anim-float" style={{ animationDelay: `${-pair * 1.3}s`, animationDuration: `${5.2 + pair * 0.6}s` }}>
         <button
           type="button"
-          onClick={onClick}
-          onPointerDown={onDown}
-          onPointerUp={onUp}
-          onPointerCancel={onUp}
-          onPointerEnter={onEnter}
+          onClick={onOpen}
           onPointerMove={onMove}
-          onFocus={() => !locked && onPreview?.(true)}
           onPointerLeave={onLeave}
           onBlur={onLeave}
           disabled={locked}
           aria-label={label}
           data-selected={Boolean(selected)}
-          className={`group relative block outline-none ${locked ? "cursor-not-allowed" : draggable ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
-          style={{ width: size, height: h, touchAction: draggable ? "none" : undefined }}
+          className={`group relative block outline-none ${locked ? "cursor-not-allowed" : ""}`}
+          style={{ width: size, height: h }}
         >
           <div ref={tilt} className="transition-transform duration-300 ease-out will-change-transform">
             <HexFrame size={size} radius={big ? 12 : 10} tone={tone} level={level} locked={locked} selected={selected} portSide={port} pingKey={`${value}-${tone}`}>
@@ -125,7 +61,6 @@ export default function HexCell({ size, kicker, title, value, caption, tone = "o
                     {title && <span className={`${big ? "text-[15px]" : "text-[13px]"} font-semibold leading-tight`}>{title}</span>}
                     <span className={`font-mono ${big ? "text-[14px]" : "text-[14px]"} mt-0.5 font-semibold leading-tight`}>{value}</span>
                     {caption && <span className={`mt-0.5 text-[11.5px] leading-tight ${soft}`}>{caption}</span>}
-                    {spark && <Spark values={spark} max={sparkMax} color={tone === "over" ? rgb("rose-deep") : rgb("accent")} />}
                   </>
                 )}
               </span>

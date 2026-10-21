@@ -18,6 +18,13 @@ export const transactionsApi = resource("/api/transactions");
 export const goalsApi = resource("/api/goals");
 export const billsApi = resource("/api/bills");
 
+// Plans: confirming a plan saves all of its lines at once; a single line can be removed (undo).
+export const allocationsApi = {
+  list: () => body(http.get("/api/allocations")),
+  create: (plan) => body(http.post("/api/allocations", plan)),
+  remove: (id) => body(http.delete(`/api/allocations/${id}`))
+};
+
 export const authApi = {
   register: (payload) => body(http.post("/api/auth/register", payload)),
   login: (payload) => body(http.post("/api/auth/login", payload)),

@@ -5,13 +5,13 @@ import { useFinance } from "../context/finance";
 import { AREA_BY_ID } from "../lib/areas";
 import { parseQuickEntry } from "../lib/quickEntry";
 
-const EXAMPLES = ["food 450 lunch", "rent 30k", "fare 120 boda", "+85000 salary", "save 5000 bike"];
+const EXAMPLES = ["food 450 lunch", "rent 30k", "fare 120 boda", "+85000 salary"];
 
 function QuickAddForm({ onClose }) {
-  const { summary, addEarning, addSpending, money } = useFinance();
+  const { ledger, addEarning, addSpending, money } = useFinance();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const parsed = useMemo(() => (text.trim() ? parseQuickEntry(text, summary.currency) : null), [text, summary.currency]);
+  const parsed = useMemo(() => (text.trim() ? parseQuickEntry(text, ledger.currency) : null), [text, ledger.currency]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -27,7 +27,7 @@ function QuickAddForm({ onClose }) {
   };
 
   const preview = parsed && !parsed.error
-    ? `${parsed.type === "income" ? "Earnings" : AREA_BY_ID[parsed.areaId].label}: ${parsed.currency === summary.currency ? money(parsed.amount) : `${parsed.currency} ${parsed.amount}`}${parsed.title ? `, "${parsed.title}"` : ""}`
+    ? `${parsed.type === "income" ? "Earnings" : AREA_BY_ID[parsed.areaId].label}: ${parsed.currency === ledger.currency ? money(parsed.amount) : `${parsed.currency} ${parsed.amount}`}${parsed.title ? `, "${parsed.title}"` : ""}`
     : null;
 
   return (

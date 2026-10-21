@@ -15,10 +15,11 @@ import ToastViewport from "./ToastViewport";
  * Escape key and screen-reader semantics; we only restyle it.
  * Children render only while open, so forms reset every time it is reopened.
  *   wide:       a wider card for two-column content (Settings)
+ *   extraWide:  the widest card, for the plan screen (editor beside the live check)
  *   dismissible: false removes Escape / backdrop / close button (used for the recovery code,
  *                which must be acknowledged)
  */
-export default function Modal({ open, onClose, title, subtitle, children, wide = false, dismissible = true }) {
+export default function Modal({ open, onClose, title, subtitle, children, wide = false, extraWide = false, dismissible = true }) {
   const ref = useRef(null);
   const timer = useRef(null);
   const [closing, setClosing] = useState(false);
@@ -60,7 +61,7 @@ export default function Modal({ open, onClose, title, subtitle, children, wide =
       onClick={(e) => e.target === ref.current && requestClose()}
     >
       {open && (
-        <div className={`popup-card ${wide ? "w-[min(94vw,760px)]" : "w-[min(94vw,580px)]"}`}>
+        <div className={`popup-card ${extraWide ? "w-[min(96vw,1040px)]" : wide ? "w-[min(94vw,760px)]" : "w-[min(94vw,580px)]"}`}>
           <HexCard>
             <header className="bar-surface flex items-center justify-between gap-4 py-3 pl-12 pr-10">
               <div className="flex items-center gap-3">

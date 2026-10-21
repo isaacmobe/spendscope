@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import AmountForm from "./AmountForm";
 import { HexButton, HexDot, HexField, HexMeter, HexSegmented, HexStepper } from "./hx";
-import { CURRENCIES } from "../lib/money";
-import { IconTrash } from "./icons";
+import { IconChevronLeft, IconChevronRight, IconTrash } from "./icons";
 import { useFinance } from "../context/finance";
-import { formatMoney } from "../lib/money";
+import { CURRENCIES, formatMoney } from "../lib/money";
 
 const toneFor = (ratio) => (ratio > 1 ? "over" : ratio > 0.85 ? "warn" : "ok");
+const monthYear = (d) => d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
 // Delete button that asks twice: the first click turns it into "Sure?", the second deletes.
 function ConfirmDelete({ onConfirm, label }) {
@@ -53,29 +53,33 @@ export function EntryList({ entries, empty }) {
 }
 
 function SectionTitle({ children }) {
-  return <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-soft">{children}</h3>;
+  return <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-ink-soft">{children}</h3>;
 }
 
-/** Housing, Food, Transport, Lifestyle: add spending, see this month's entries. */
-export function SpendPanel({ area }) {
-  const { addSpending, summary } = useFinance();
-  const { currency, entries } = summary;
+const newestFirst = (list) => [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+/** Housing, Food, Transport, Lifestyle: what is left in the envelope, add spending, recent entries. */
+export function EnvelopePanel({ id }) {
+  const { addSpending, ledger } = useFinance();
+  const { currency } = ledger;
+  const env = ledger.envelopes[id];
+  const ratio = env.allocated > 0 ? env.spent / env.allocated : env.spent > 0 ? 2 : 0;
+  const fresh = env.allocated === 0 && env.spent === 0;
   return (
     <div className="space-y-6">
       <section>
-        <p className="font-mono text-sm">
-          {formatMoney(area.spent, currency)} <span className="text-ink-soft">of {formatMoney(area.budget, currency)} planned</span>
+        <p className={`font-mono text-2xl font-semibold ${env.balance < 0 ? "text-rose-deep" : "text-accent"}`}>{formatMoney(env.balance, currency)}</p>
+        <p className="mt-1 text-[12.5px] text-ink-soft">
+          left of {formatMoney(env.allocated, currency)} planned, {formatMoney(env.spent, currency)} spent
         </p>
-        <HexMeter className="mt-2" ratio={area.ratio} tone={toneFor(area.ratio)} />
-        {area.budget === 0 && <p className="mt-2 text-xs text-ink-soft">Record earnings in the core to give this area a budget.</p>}
-        {area.projected != null && area.budget > 0 && (
-          <p className="mt-2 text-xs text-ink-soft">At this pace the month ends near {formatMoney(area.projected, currency)}.</p>
-        )}
+        <HexMeter className="mt-3" ratio={ratio} tone={toneFor(ratio)} />
+        {fresh && <p className="mt-3 text-xs text-ink-soft">No money is planned here yet. Plan your earnings from the centre and this envelope is filled.</p>}
+        {env.balance < 0 && <p className="mt-3 text-xs text-rose-deep">This envelope is overspent. Cover it from Lifestyle in your next plan, or spend less here.</p>}
       </section>
-      <AmountForm withNote submitLabel="Add" currency={currency} onSubmit={(amount, note) => addSpending(area.id, amount, note)} />
+      <AmountForm withNote submitLabel="Spend" currency={currency} onSubmit={(amount, note) => addSpending(id, amount, note)} />
       <section>
-        <SectionTitle>This month</SectionTitle>
-        <EntryList entries={entries[area.id]} empty="Nothing recorded here yet." />
+        <SectionTitle>Recent spending</SectionTitle>
+        <EntryList entries={newestFirst(env.entries).slice(0, 15)} empty="Nothing spent from here yet." />
       </section>
     </div>
   );
@@ -83,27 +87,29 @@ export function SpendPanel({ area }) {
 
 /** Earnings history, opened from the core. */
 export function EarningsPanel() {
-  const { summary } = useFinance();
+  const { ledger } = useFinance();
   return (
     <div>
-      <SectionTitle>Earnings this month</SectionTitle>
-      <EntryList entries={summary.incomeEntries} empty="No earnings recorded this month." />
+      <SectionTitle>Money received</SectionTitle>
+      <EntryList entries={newestFirst(ledger.incomeEntries).slice(0, 30)} empty="Nothing received yet." />
     </div>
   );
 }
 
 const ordinal = (n) => (n % 100 >= 11 && n % 100 <= 13 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
 
-/** Bills: recurring monthly obligations with a due day. */
+/** Bills: recurring monthly obligations with a due day. Each is charged to the Bills envelope on its due day. */
 export function BillsPanel() {
-  const { bills, addBill, removeBill, summary, toDisplay } = useFinance();
-  const { currency } = summary;
+  const { bills, addBill, removeBill, ledger, toDisplay } = useFinance();
+  const { currency } = ledger;
   const [form, setForm] = useState({ name: "", amount: "" });
   const [dueDay, setDueDay] = useState(1);
   const [billCurrency, setBillCurrency] = useState(currency); // a bill keeps its own currency, e.g. a USD subscription
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const env = ledger.envelopes.bills;
+  const covered = ledger.billsTotal > 0 ? env.balance / ledger.billsTotal : null;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -116,7 +122,7 @@ export function BillsPanel() {
       await addBill({ name: form.name.trim(), amount, dueDay, currency: billCurrency });
       setForm({ name: "", amount: "" });
     } catch {
-      /* error banner shows the server message */
+      /* the error toast shows the server message */
     } finally {
       setBusy(false);
     }
@@ -124,11 +130,17 @@ export function BillsPanel() {
 
   return (
     <div className="space-y-6">
-      <p className="font-mono text-sm">
-        {formatMoney(summary.billsTotal, currency)} <span className="text-ink-soft">committed every month</span>
-      </p>
+      <section>
+        <p className="font-mono text-sm">
+          {formatMoney(ledger.billsTotal, currency)} <span className="text-ink-soft">due every month</span>
+        </p>
+        <p className="mt-1 text-[12.5px] text-ink-soft">
+          The Bills envelope holds {formatMoney(env.balance, currency)}
+          {covered != null && ` (${covered.toFixed(1)} months of bills)`}. Each bill is taken from it on its due day.
+        </p>
+      </section>
       <form onSubmit={submit} className="space-y-3" noValidate>
-        <HexField label="Bill" value={form.name} maxLength={60} onChange={set("name")} placeholder="e.g. Wi-Fi" />
+        <HexField label="Bill" value={form.name} maxLength={60} onChange={set("name")} placeholder="e.g. Claude" />
         <HexField label={`Amount (${billCurrency})`} type="number" inputMode="decimal" step="any" min="0" value={form.amount} onChange={set("amount")} />
         <div>
           <span className="hx-label">Billed in</span>
@@ -138,12 +150,16 @@ export function BillsPanel() {
         <HexButton type="submit" variant="solid" disabled={busy} className="w-full">
           Add bill
         </HexButton>
-        {error && <p role="alert" className="text-center text-[11px] font-medium text-rose-deep">{error}</p>}
+        {error && (
+          <p role="alert" className="text-center text-[11px] font-medium text-rose-deep">
+            {error}
+          </p>
+        )}
       </form>
       <section>
         <SectionTitle>Your bills</SectionTitle>
         {bills.length === 0 ? (
-          <p className="text-sm text-ink-soft">No bills yet. Add rent, internet, loans or school fees.</p>
+          <p className="text-sm text-ink-soft">No bills yet. Add subscriptions, internet, rent or loans.</p>
         ) : (
           <ul className="space-y-2">
             {bills.map((b) => (
@@ -152,7 +168,10 @@ export function BillsPanel() {
                   <HexDot />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{b.name}</p>
-                    <p className="font-mono text-[11px] text-ink-soft">due on the {b.dueDay}{ordinal(b.dueDay)}</p>
+                    <p className="font-mono text-[11px] text-ink-soft">
+                      due on the {b.dueDay}
+                      {ordinal(b.dueDay)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
@@ -172,17 +191,16 @@ export function BillsPanel() {
 }
 
 // Whole months between today and a deadline (0 when there is none), for the stepper.
-const monthsUntil = (deadline, today) =>
-  deadline ? Math.max(0, Math.round((new Date(deadline) - today) / (30.44 * 86400000))) : 0;
+const monthsUntil = (deadline, today) => (deadline ? Math.max(0, Math.round((new Date(deadline) - today) / (30.44 * 86400000))) : 0);
 
-// Create or edit the main goal. Values are shown and saved in the current display currency.
-function GoalForm({ goal }) {
-  const { saveGoal, toDisplay, summary } = useFinance();
-  const { currency } = summary;
+// Create or edit a goal. Values are shown and saved in the current display currency.
+function GoalForm({ goal, onDone }) {
+  const { saveGoal, toDisplay, ledger } = useFinance();
+  const { currency } = ledger;
   const [today] = useState(() => new Date());
   const round = (n) => String(Math.round(n * 100) / 100);
   const [form, setForm] = useState({
-    name: goal?.name ?? "Motorbike",
+    name: goal?.name ?? "",
     targetAmount: goal ? round(toDisplay(goal.targetAmount, goal.currency)) : "",
     savedAmount: goal ? round(toDisplay(goal.savedAmount, goal.currency)) : "0"
   });
@@ -205,9 +223,10 @@ function GoalForm({ goal }) {
     try {
       const payload = { name: form.name.trim(), targetAmount, savedAmount };
       if (deadlineDate) payload.deadline = deadlineDate.toISOString();
-      await saveGoal(payload);
+      await saveGoal(payload, goal?._id);
+      onDone?.();
     } catch {
-      /* error banner shows the server message */
+      /* the error toast shows the server message */
     } finally {
       setBusy(false);
     }
@@ -215,70 +234,97 @@ function GoalForm({ goal }) {
 
   return (
     <form onSubmit={submit} className="space-y-3" noValidate>
-      <HexField label="Goal name" value={form.name} maxLength={60} onChange={set("name")} />
+      <HexField label="Goal name" value={form.name} maxLength={60} onChange={set("name")} placeholder="e.g. Motorbike" />
       <HexField label={`Price (${currency})`} type="number" inputMode="decimal" step="any" min="0" value={form.targetAmount} onChange={set("targetAmount")} />
       <HexField label={`Already saved (${currency})`} type="number" inputMode="decimal" step="any" min="0" value={form.savedAmount} onChange={set("savedAmount")} />
-      <HexStepper
-        label="Buy it within"
-        value={months}
-        onChange={setMonths}
-        min={0}
-        max={120}
-        format={(n) => (n === 0 ? "no deadline" : `${n} month${n === 1 ? "" : "s"}`)}
-      />
-      {deadlineDate && <p className="ml-4 text-[11px] text-ink-soft">Target date: {deadlineDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>}
+      <HexStepper label="Buy it within" value={months} onChange={setMonths} min={0} max={120} format={(n) => (n === 0 ? "no deadline" : `${n} month${n === 1 ? "" : "s"}`)} />
+      {deadlineDate && <p className="ml-4 text-[11px] text-ink-soft">Target date: {monthYear(deadlineDate)}</p>}
       <HexButton type="submit" variant="solid" disabled={busy} className="w-full">
-        {goal ? "Save changes" : "Set goal"}
+        {goal ? "Save changes" : "Add goal"}
       </HexButton>
-      {error && <p role="alert" className="text-center text-[11px] font-medium text-rose-deep">{error}</p>}
+      {error && (
+        <p role="alert" className="text-center text-[11px] font-medium text-rose-deep">
+          {error}
+        </p>
+      )}
     </form>
   );
 }
 
-/** Motorbike fund: goal setup, progress, contributions. */
-export function SavingsPanel({ area }) {
-  const { goal, summary, addSpending } = useFinance();
-  const { currency, entries } = summary;
-  const [editing, setEditing] = useState(false);
-  const g = summary.goal;
-
-  if (!goal) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-ink-soft">What are you saving for? Tell the console the price and it works out how long it takes with your plan.</p>
-        <GoalForm goal={null} />
-      </div>
-    );
-  }
+/** Goals: the emergency fund first, then every goal in the order it is funded. */
+export function GoalsPanel() {
+  const { ledger, goals, removeGoal, moveGoal } = useFinance();
+  const { currency, starter } = ledger;
+  const [editing, setEditing] = useState(null); // goal id being edited, "new" while adding, or null
+  const doc = (id) => goals.find((g) => g._id === id);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      <p className="text-[13px] leading-relaxed text-ink-soft">Savings fill the emergency fund first, then your goals one after another in the order shown. Use the arrows to change which goal is funded first.</p>
+
+      {starter.target > 0 && (
+        <section>
+          <SectionTitle>Emergency fund</SectionTitle>
+          <p className="font-mono text-sm">
+            {formatMoney(starter.funded, currency)} <span className="text-ink-soft">of {formatMoney(starter.target, currency)}</span>
+          </p>
+          <HexMeter className="mt-2" ratio={starter.target > 0 ? starter.funded / starter.target : 0} tone="good" />
+          <p className="mt-1.5 text-[12px] text-ink-soft">
+            {starter.months} month{starter.months === 1 ? "" : "s"} of bills and basic living costs. Change it in Settings.
+          </p>
+        </section>
+      )}
+
       <section>
-        <p className="font-mono text-sm">
-          {formatMoney(g.saved, currency)} <span className="text-ink-soft">of {formatMoney(g.target, currency)}</span>
-        </p>
-        <HexMeter className="mt-2" ratio={g.progress} tone="good" />
-        <p className="mt-3 text-sm">
-          {g.reached
-            ? `You have enough for your ${g.name}. Time to ride.`
-            : g.monthsToGo == null
-              ? "Record earnings and a savings share to see when you can buy it."
-              : `At your plan's savings pace you reach it in ${g.monthsToGo} month${g.monthsToGo === 1 ? "" : "s"} (about ${g.eta.toLocaleDateString(undefined, { month: "long", year: "numeric" })}).`}
-        </p>
-        {g.soonerBy && <p className="mt-1 text-xs text-ink-soft">Saving 5% more of your earnings would bring that {g.soonerBy} month{g.soonerBy === 1 ? "" : "s"} closer.</p>}
+        <SectionTitle>Your goals</SectionTitle>
+        {ledger.goals.length === 0 && <p className="text-sm text-ink-soft">No goals yet. What are you saving for? Add the price and the plan works out how long it takes.</p>}
+        <ul className="space-y-5">
+          {ledger.goals.map((g, i) => (
+            <li key={g.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    <span className="mr-2 font-mono text-[11px] text-ink-soft">#{i + 1}</span>
+                    {g.name}
+                  </p>
+                  <p className="font-mono text-[12.5px]">
+                    {formatMoney(g.saved, currency)} <span className="text-ink-soft">of {formatMoney(g.target, currency)}</span>
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <HexButton size="sm" variant="ghost" aria-label={`Fund ${g.name} earlier`} disabled={i === 0} onClick={() => moveGoal(g.id, -1).catch(() => {})} className="!px-2.5">
+                    <IconChevronLeft className="h-4 w-4" />
+                  </HexButton>
+                  <HexButton size="sm" variant="ghost" aria-label={`Fund ${g.name} later`} disabled={i === ledger.goals.length - 1} onClick={() => moveGoal(g.id, 1).catch(() => {})} className="!px-2.5">
+                    <IconChevronRight className="h-4 w-4" />
+                  </HexButton>
+                  <HexButton size="sm" variant="ghost" onClick={() => setEditing(editing === g.id ? null : g.id)}>
+                    Edit
+                  </HexButton>
+                  <ConfirmDelete label={g.name} onConfirm={() => removeGoal(g.id).catch(() => {})} />
+                </div>
+              </div>
+              <HexMeter className="mt-2" ratio={g.progress} tone="good" />
+              <p className="mt-1.5 text-[12px] text-ink-soft">
+                {g.reached ? "Reached." : g.deadline ? `By ${monthYear(g.deadline)}: needs about ${formatMoney(g.need, currency)} a month in total savings.` : "No deadline set."}
+              </p>
+              {editing === g.id && doc(g.id) && (
+                <div className="mt-4">
+                  <GoalForm goal={doc(g.id)} onDone={() => setEditing(null)} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
-      <AmountForm withNote submitLabel="Save" currency={currency} onSubmit={(amount, note) => addSpending(area.id, amount, note || `Saved for ${g.name}`)} />
+
       <section>
-        <SectionTitle>Saved this month</SectionTitle>
-        <EntryList entries={entries.savings} empty="Nothing set aside this month yet." />
-      </section>
-      <section>
-        <HexButton variant="ghost" size="sm" aria-expanded={editing} onClick={() => setEditing((v) => !v)}>
-          {editing ? "Hide goal settings" : "Edit goal"}
+        <HexButton variant="ghost" size="sm" aria-expanded={editing === "new"} onClick={() => setEditing(editing === "new" ? null : "new")}>
+          {editing === "new" ? "Cancel" : "Add a goal"}
         </HexButton>
-        {editing && (
+        {editing === "new" && (
           <div className="mt-4">
-            <GoalForm goal={goal} />
+            <GoalForm goal={null} onDone={() => setEditing(null)} />
           </div>
         )}
       </section>

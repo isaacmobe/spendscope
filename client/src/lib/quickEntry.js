@@ -64,7 +64,7 @@ export function parseQuickEntry(text, defaultCurrency = "KES") {
     const title = (areaWord ? [areaWord, ...note] : note).join(" ").slice(0, APP.noteMax);
     return { type: "income", amount: amountInfo.amount, currency, title: title || "Earnings", areaId: null };
   }
-  if (!areaId) return { error: "Which area? Use a word like food, rent, fare, bills, fun or save." };
+  if (!areaId) return { error: "Which area? Use a word like food, rent, fare, bills or fun. Savings are set by planning your earnings." };
 
   // The note is whatever else was typed; if nothing, the word that named the area.
   const title = (note.join(" ") || areaWord).slice(0, APP.noteMax);

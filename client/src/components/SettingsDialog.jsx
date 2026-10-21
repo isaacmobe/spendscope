@@ -32,7 +32,7 @@ function PlanTab({ onClose }) {
   const s = user.settings;
   const [rate, setRate] = useState(String(s.usdToKes));
   const [apr, setApr] = useState(String(s.savingsApr ?? 0));
-  const [months, setMonths] = useState(s.emergencyMonths ?? 3);
+  const [months, setMonths] = useState(s.starterMonths ?? PLAN.starterMonths);
   const [split, setSplit] = useState({ ...s.allocation });
   const [error, setError] = useState("");
   const [rateNote, setRateNote] = useState("");
@@ -67,7 +67,7 @@ function PlanTab({ onClose }) {
     setError("");
     setBusy(true);
     try {
-      await updateSettings({ usdToKes: rateNumber, savingsApr: aprNumber, emergencyMonths: months, allocation: split });
+      await updateSettings({ usdToKes: rateNumber, savingsApr: aprNumber, starterMonths: months, allocation: split });
       onClose();
     } catch (err) {
       setError(errorMessage(err, "Could not save settings."));
@@ -92,11 +92,12 @@ function PlanTab({ onClose }) {
             <HexField label="Yearly growth on savings (%)" type="number" inputMode="decimal" step="any" min="0" max="30" value={apr} onChange={(e) => setApr(e.target.value)} />
             <Note>Use 0 if you keep it as cash. For a savings account or money market fund, enter its current yearly rate; projections use compound growth.</Note>
           </div>
-          <HexStepper label="Safety net target" value={months} onChange={setMonths} min={1} max={12} format={(n) => `${n} month${n === 1 ? "" : "s"}`} />
+          <HexStepper label="Emergency fund first" value={months} onChange={setMonths} min={0} max={6} format={(n) => (n === 0 ? "skip it" : `${n} month${n === 1 ? "" : "s"}`)} />
+          <Note>Savings fill an emergency fund of this many months of bills and basic living costs before your goals get money. Choose "skip it" if you already have one.</Note>
         </div>
 
         <fieldset>
-          <legend className="hx-label">How your money is planned</legend>
+          <legend className="hx-label">How your money is suggested</legend>
           <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {PLAN.presets.map((p) => (
               <HexButton key={p.label} size="sm" variant="ghost" className="w-full" title={p.label} onClick={() => setSplit({ ...p.values })}>
@@ -110,7 +111,7 @@ function PlanTab({ onClose }) {
             <HexStepper label="Savings" value={split.savings} onChange={part("savings")} step={5} max={100} format={(n) => `${n}%`} />
           </div>
           <p className={`ml-4 mt-2 font-mono text-xs ${total === 100 ? "text-accent" : "text-rose-deep"}`}>Total: {total}%</p>
-          <Note>Bills come off first, exactly as entered. Savings is your minimum share of earnings (the plan saves more if your goal deadline needs it). Needs and wants set how the money left after that is divided: needs pays housing, food and transport, wants pays lifestyle.</Note>
+          <Note>When you plan money, bills are covered first. Savings is your minimum share (the plan suggests more if a goal deadline needs it). Needs and wants set how the rest is divided: needs for housing, food and transport, wants for lifestyle. You can change every amount before you confirm.</Note>
         </fieldset>
       </div>
 

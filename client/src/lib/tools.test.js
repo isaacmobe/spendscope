@@ -15,7 +15,7 @@ test("quick add understands expenses, earnings, units and currencies", () => {
   assert.equal(parseQuickEntry("fare 150", "USD").currency, "USD"); // falls back to the display currency
   assert.deepEqual(parseQuickEntry("+85000 salary", "KES"), { type: "income", amount: 85000, currency: "KES", title: "salary", areaId: null });
   assert.equal(parseQuickEntry("earned 12k gig", "KES").type, "income");
-  assert.equal(parseQuickEntry("save 5000 bike", "KES").areaId, "savings");
+  assert.match(parseQuickEntry("save 5000 bike", "KES").error, /Which area/); // savings come from planning, not a spending word
 });
 
 test("quick add reports problems instead of guessing", () => {

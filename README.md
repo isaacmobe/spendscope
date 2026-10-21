@@ -130,9 +130,10 @@ Base URL: `http://localhost:5000`
 ## Features
 
 - **Hexagon console.** Enter earnings in the core; six hexagon areas (Housing, Food, Transport, Bills, Lifestyle, Motorbike Fund) take your spending. Light and dark themes, a honeycomb background, and a calm Three.js scene that reacts to what you do. Fully responsive.
-- **Bills-first, savings-first plan.** Recurring bills come off first, then savings (at least your minimum share, more if your goal deadline needs it), then the rest is yours to spend. Savings fill a starter emergency fund before the goal.
-- **Goal projection** with compound growth, deadline gap, "what if I save 5% more", and a safety-net target.
-- **Safe to spend today**, a **spending-pace chart**, month-by-month **history**, and rule-based advice.
+- **Receive, plan, spend.** Enter money you just received. The system suggests where every shilling goes (bills first, then savings for your goals, then living money); you change any amount and watch what it means for your goals before you confirm. Unspent money stays in its envelope.
+- **Several goals**, funded in the order you choose, after a starter emergency fund. Compound growth, deadline checks and "what if I save 5% more" for each.
+- **Bills in their own currency**, charged to the Bills envelope on their due day.
+- **Envelope hexagons** for Housing, Food, Transport, Bills, Lifestyle and Goals; light and dark themes and a calm 3D hexagon wall. Fully responsive.
 - **Quick add** (Ctrl/Cmd+K): type `food 450 lunch`, `rent 30k`, `+85000 salary`.
 - **Undo** for deletes, goal **milestone** celebrations, **CSV export**, **KES / USD** with a typed or live exchange rate.
 - **Accounts:** scrypt password hashing, httpOnly cookie sessions, recovery code for forgotten passwords, change password, delete account.
@@ -184,20 +185,20 @@ Passwords are stored as one-way hashes, so they cannot be read back. Options, in
 
 ## How the money logic works
 
-All of it lives in `client/src/lib/finance.js` (pure functions covered by tests); every threshold is in `client/src/config/plan.js`.
+All of it lives in `client/src/lib/ledger.js` (pure functions covered by tests, with the compound-growth maths in `savingsMath.js`); every threshold is in `client/src/config/plan.js`.
 
-The plan is a waterfall, in this order:
+**Envelopes.** Money you receive is "to assign". You plan it: each part is *allocated* to an envelope (Bills, Housing, Food, Transport, Lifestyle), to the starter emergency fund, or to a goal. An envelope's balance is what was allocated minus what you spent from it, and it carries forward. `To assign = all money received - everything allocated`.
 
-1. **Earnings** `I` are the viewed month's income entries, converted to the display currency with your rate.
-2. **Bills** `F` come off first, exactly as entered. Each bill keeps its own currency (a US dollar subscription stays in dollars and converts at your rate). Money left after bills: `free = I - F`.
-3. **Savings** `S = min(cap, max(minimum, need))`, where `minimum = I x savings share` (20% by default), `need` = what the goal deadline requires each month (below), and `cap = free x 65%`, so at least 35% of the post-bill money always stays for living (`minLivingShare` in `plan.js`). Pay yourself first (the idea behind 50/30/20, Warren and Tyagi, *All Your Worth*).
-4. **Flexible money** `D = I - F - S` is divided between needs and wants in the ratio of the Needs and Wants settings (50:30 by default, so 62.5% / 37.5%). The needs part is shared Housing 50%, Food 31.25%, Transport 18.75% (the old 40/25/15 weights without Bills); Lifestyle gets all of the wants part. The Needs, Wants and Savings figures on screen are the split actually in force, as whole percentages.
-5. **Starter emergency fund.** Savings first fill a starter fund of `starterMonths` (1) x (bills + basic living costs), where basic living = needs share x free x (1 - minimum share). Only savings beyond it count toward the goal. Set `starterMonths` to 0 in `plan.js` to skip it.
-6. **Goal projection.** Months to the goal solve `saved*(1+r)^n + S*((1+r)^n - 1)/r = price + starter fund still missing` (r = yearly growth / 12; plain division when growth is 0). With a deadline, `need = requiredMonthly(price + starter missing, saved, months left, growth)`, which is what step 3 uses.
-7. **Safe to spend today** = (needs pool + wants pool - spent so far) / days left, today included. Bills count in full from day 1, because they are committed.
-8. **Spending pace** = running total of needs + wants (bills on their due day, savings excluded) against the living budget.
-9. **Safety net** = months (default 3) x the planned needs pool (bills plus planned essentials).
-10. **Advice** is rule-based: overspend, month-end pace for food/transport/lifestyle, bills due within 7 days, saving half of an earnings increase, moving unspent money to savings in the last 7 days.
+**The suggested plan** for an amount `A` (you can change every line; "left to assign" must reach zero to confirm):
+
+1. **Bills.** Top up the Bills envelope so it covers one month of bills `F` (each bill keeps its own currency and converts at your rate; bills are charged on their due day, starting once the Bills envelope is first funded).
+2. **Savings** `S = clamp(monthTarget - alreadySavedThisMonth, 0, cap)`, where `monthTarget = max(minimum share x monthly income, tightest goal deadline)` and `cap = (A - bills) x 65%`, so at least 35% of the money left after bills stays for living (`minLivingShare` in `plan.js`). Pay yourself first (the idea behind 50/30/20, Warren and Tyagi, *All Your Worth*).
+3. **Where savings go.** Starter emergency fund first (`starterMonths` x (bills + basic living costs); 1 by default, 0 to skip), then goals in priority order, each up to what it still needs.
+4. **Living money** `A - bills - S` is divided between needs and wants in the Needs : Wants ratio from Settings (50:30 by default). Needs are shared Housing 50%, Food 31.25%, Transport 18.75%; Lifestyle gets the wants part.
+
+**The check** (recalculated as you edit): savings pace `= your savings lines x (monthly income / A)`, then savings flow in priority order. For a goal, months solve `P*((1+r)^n - 1)/r = remaining + starter fund missing + goals ahead of it` (r = yearly growth / 12; plain division when growth is 0). It compares that with the deadline (`requiredMonthly`), shows how much sooner 5% more of your income would bring it, how long the emergency fund takes to fill, how many months of bills are covered, and about how much you can spend per day for the rest of the month.
+
+**Deleting a goal** returns the money planned into it to "to assign".
 
 ## Deploy to Vercel
 
