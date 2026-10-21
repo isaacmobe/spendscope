@@ -5,17 +5,26 @@ import mongoose from "mongoose";
 const options = { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 };
 
 /**
- * connectDB()
- * - For the long-running server: connect once at startup and stop the process if it fails.
+ * connectWithRetry()
+ * - For the long-running server: keep trying until the database answers, instead of crashing.
+ *   The API stays up meanwhile and answers 503, so a wrong Atlas IP allow-list or a short outage
+ *   is fixed by the next successful attempt, without restarting anything.
  */
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, options);
-    console.log(`MongoDB connected Host: ${conn.connection.host}`);
-  } catch (error) {
-    // If the database is unreachable the API cannot work, so fail fast.
-    console.error("MongoDB connection failed:", error.message);
-    process.exit(1);
+const RETRY_MS = 5000;
+const connectWithRetry = async () => {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const conn = await mongoose.connect(process.env.MONGO_URI, options);
+      console.log(`MongoDB connected Host: ${conn.connection.host}`);
+      return;
+    } catch (error) {
+      console.error(`MongoDB connection failed (attempt ${attempt}): ${error.message}`);
+      if (/whitelist|allow.?list|IP/i.test(error.message)) {
+        console.error("Hint: in MongoDB Atlas open Network Access and add your current IP address (or 0.0.0.0/0 for testing).");
+      }
+      console.error(`Retrying in ${RETRY_MS / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
+    }
   }
 };
 
@@ -36,4 +45,4 @@ export function connectOnce() {
   return pending;
 }
 
-export default connectDB;
+export default connectWithRetry;

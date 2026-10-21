@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import connectDB from "./config/db.js";
+import connectWithRetry from "./config/db.js";
 import { buildApp } from "./app.js";
 import { assertConfig } from "./config/check.js";
 
@@ -14,10 +14,10 @@ try {
   process.exit(1);
 }
 
-// Connect first, then start accepting requests.
-await connectDB();
-
+// Start listening straight away and connect to the database in the background (retrying), so a
+// database that is unreachable for a moment never takes the whole server down.
 const PORT = process.env.PORT || 5000;
-buildApp().listen(PORT, () => {
+buildApp({ requireDb: true }).listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
 });
+connectWithRetry();

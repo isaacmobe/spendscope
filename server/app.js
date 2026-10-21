@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
 import { transactionsRouter, goalsRouter, billsRouter } from "./routes/resource.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
@@ -12,8 +13,9 @@ import { errorHandler } from "./middleware/error.middleware.js";
  * ----------
  * Creates the Express app WITHOUT connecting to a database or listening on a port,
  * so tests can import it directly. index.js adds the DB connection and listen().
+ *   requireDb: answer /api requests with 503 while the database is not connected (long-running server).
  */
-export function buildApp() {
+export function buildApp({ requireDb = false } = {}) {
   const app = express();
 
   // Behind a reverse proxy (Vercel, Render, nginx) the real client IP arrives in X-Forwarded-For.
@@ -32,6 +34,13 @@ export function buildApp() {
 
   // General rate limit for the whole API (auth routes add a stricter one).
   app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: "draft-7", legacyHeaders: false }));
+
+  if (requireDb) {
+    app.use("/api", (req, res, next) => {
+      if (mongoose.connection.readyState === 1) return next();
+      res.status(503).json({ success: false, message: "Database unavailable. Try again shortly." });
+    });
+  }
 
   app.get("/", (req, res) => res.send("API running..."));
   app.use("/api/auth", authRoutes);
