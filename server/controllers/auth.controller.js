@@ -89,6 +89,7 @@ export const updateSettings = async (req, res) => {
       usdToKes: [(v) => num(v, "usdToKes", { min: 1, max: 10000 }), false],
       savingsApr: [(v) => num(v, "savingsApr", { min: 0, max: 30 }), false],
       emergencyMonths: [(v) => int(v, "emergencyMonths", { min: 1, max: 12 }), false],
+      starterMonths: [(v) => int(v, "starterMonths", { min: 0, max: 6 }), false],
       name: [(v) => str(v, "name", { max: 60 }), false],
       allocation: [
         (v) => {
@@ -115,6 +116,7 @@ export const updateSettings = async (req, res) => {
   if (body.usdToKes) $set["settings.usdToKes"] = body.usdToKes;
   if (body.savingsApr !== undefined) $set["settings.savingsApr"] = body.savingsApr;
   if (body.emergencyMonths) $set["settings.emergencyMonths"] = body.emergencyMonths;
+  if (body.starterMonths !== undefined) $set["settings.starterMonths"] = body.starterMonths;
   if (body.allocation) $set["settings.allocation"] = body.allocation;
 
   const user = await User.findByIdAndUpdate(req.userId, { $set }, { returnDocument: "after", runValidators: true });

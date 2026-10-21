@@ -13,6 +13,7 @@ export const CURRENCIES = ["KES", "USD"];
  * - settings.allocation: how new earnings are split (needs / wants / savings), must total 100.
  * - settings.savingsApr: expected yearly growth of money you save, in percent (0 = kept as cash).
  * - settings.emergencyMonths: how many months of essential costs the emergency fund should cover.
+ * - settings.starterMonths: months of bills and basic living the starter emergency fund holds before goals get money (0 = skip).
  */
 const UserSchema = new mongoose.Schema(
   {
@@ -26,6 +27,7 @@ const UserSchema = new mongoose.Schema(
       usdToKes: { type: Number, min: 1, max: 10000, default: defaults.usdToKes },
       savingsApr: { type: Number, min: 0, max: 30, default: defaults.savingsApr },
       emergencyMonths: { type: Number, min: 1, max: 12, default: defaults.emergencyMonths },
+      starterMonths: { type: Number, min: 0, max: 6, default: defaults.starterMonths },
       allocation: {
         needs: { type: Number, min: 0, max: 100, default: defaults.allocation.needs },
         wants: { type: Number, min: 0, max: 100, default: defaults.allocation.wants },

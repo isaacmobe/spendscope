@@ -73,3 +73,21 @@ test("new-account defaults are valid and add up", () => {
   assert.ok(defaults.usdToKes >= 1);
   assert.ok(["KES", "USD"].includes(defaults.currency));
 });
+
+import { parseAllocationPlan } from "../utils/allocations.js";
+
+test("a plan is validated whole: known envelopes, owned goals, positive amounts", () => {
+  const goalId = "507f1f77bcf86cd799439011";
+  const rows = parseAllocationPlan({ lines: [{ envelope: "bills", amount: 3000 }, { envelope: "starter", amount: 0 }, { envelope: `goal:${goalId}`, amount: "9000.5" }], currency: "USD" }, new Set([goalId]));
+  assert.deepEqual(rows.map((r) => [r.envelope, r.amount, r.currency]), [["bills", 3000, "USD"], [`goal:${goalId}`, 9000.5, "USD"]]); // zero lines are dropped
+
+  throws400(() => parseAllocationPlan({ lines: [] }));
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: "savings", amount: 5 }] })); // not an envelope
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: `goal:${goalId}`, amount: 5 }] }, new Set())); // someone else's goal
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: "food", amount: -1 }] }));
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: { $ne: 1 }, amount: 5 }] }));
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: "food", amount: 0 }] })); // nothing to save
+  throws400(() => parseAllocationPlan({ lines: Array.from({ length: 21 }, () => ({ envelope: "food", amount: 1 })) }));
+  throws400(() => parseAllocationPlan({ lines: [{ envelope: "food", amount: 1 }], currency: "EUR" }));
+  throws400(() => parseAllocationPlan([]));
+});

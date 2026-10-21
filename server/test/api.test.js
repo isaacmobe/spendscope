@@ -176,3 +176,31 @@ dbTest("change password, new recovery code and account deletion need the current
   assert.equal((await api("DELETE", "/api/auth/account", { password: "changedpass12" })).status, 200);
   assert.equal((await client()("POST", "/api/auth/login", { email: "pw@test.com", password: "changedpass12" })).status, 401);
 });
+
+dbTest("plans: confirmed whole, goals must be yours, deleting a goal frees its money", async () => {
+  const a = client();
+  const b = client();
+  const reg = (api, email) => api("POST", "/api/auth/register", { email, password: "supersecret1" });
+  assert.equal((await reg(a, "plan-a@example.com")).status, 201);
+  assert.equal((await reg(b, "plan-b@example.com")).status, 201);
+
+  const goal = (await a("POST", "/api/goals", { name: "Bike", targetAmount: 220000, priority: 0 })).body.data;
+  const plan = { lines: [{ envelope: "bills", amount: 3000 }, { envelope: "food", amount: 6000 }, { envelope: `goal:${goal._id}`, amount: 9000 }] };
+
+  const saved = await a("POST", "/api/allocations", plan);
+  assert.equal(saved.status, 201);
+  assert.equal(saved.body.count, 3);
+  assert.equal((await a("GET", "/api/allocations")).body.count, 3);
+
+  // Someone else cannot read these, nor fund your goal, and a bad line saves nothing at all.
+  assert.equal((await b("GET", "/api/allocations")).body.count, 0);
+  assert.equal((await b("POST", "/api/allocations", { lines: [{ envelope: `goal:${goal._id}`, amount: 5 }] })).status, 400);
+  assert.equal((await a("POST", "/api/allocations", { lines: [{ envelope: "food", amount: 100 }, { envelope: "bogus", amount: 5 }] })).status, 400);
+  assert.equal((await a("GET", "/api/allocations")).body.count, 3);
+
+  // Deleting the goal removes the money planned into it (it returns to "to assign").
+  assert.equal((await a("DELETE", `/api/goals/${goal._id}`)).status, 200);
+  const after = (await a("GET", "/api/allocations")).body.data;
+  assert.equal(after.length, 2);
+  assert.ok(after.every((x) => !x.envelope.startsWith("goal:")));
+});

@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes.js";
-import { transactionsRouter, goalsRouter, billsRouter } from "./routes/resource.routes.js";
+import { transactionsRouter, goalsRouter, billsRouter, allocationsRouter } from "./routes/resource.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
 /**
@@ -47,6 +47,7 @@ export function buildApp({ requireDb = false } = {}) {
   app.use("/api/transactions", transactionsRouter);
   app.use("/api/goals", goalsRouter);
   app.use("/api/bills", billsRouter);
+  app.use("/api/allocations", allocationsRouter);
 
   // Unknown API routes get a JSON 404 instead of an HTML page.
   app.use((req, res) => res.status(404).json({ success: false, message: "Not found." }));

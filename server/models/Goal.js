@@ -9,6 +9,7 @@ const GoalSchema = new mongoose.Schema(
     targetAmount: { type: Number, required: true, min: 0.01 },
     savedAmount: { type: Number, default: 0, min: 0 },
     currency: { type: String, enum: CURRENCIES, default: "KES" },
+    priority: { type: Number, default: 0, min: 0, max: 99 }, // lower number = funded first
     deadline: { type: Date }
   },
   { timestamps: true }

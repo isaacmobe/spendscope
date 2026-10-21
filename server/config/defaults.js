@@ -17,5 +17,6 @@ export const defaults = Object.freeze({
     savings: num(process.env.DEFAULT_SPLIT_SAVINGS, 20)
   }),
   savingsApr: num(process.env.DEFAULT_SAVINGS_APR, 0),
-  emergencyMonths: num(process.env.DEFAULT_EMERGENCY_MONTHS, 3)
+  emergencyMonths: num(process.env.DEFAULT_EMERGENCY_MONTHS, 3),
+  starterMonths: num(process.env.DEFAULT_STARTER_MONTHS, 1)
 });
